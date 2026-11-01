@@ -1,0 +1,149 @@
+import { sessionVolume } from '../db/history'
+import { buildSummaries } from '../db/progress'
+import type { Session } from '../types'
+import { formatKg } from '../utils/format'
+import { BODY_FIELDS } from '../db/body'
+import type { BodyEntry } from '../types'
+
+export const MODEL = 'gemini-2.5-flash'
+
+export interface ChatTurn {
+  role: 'user' | 'assistant'
+  text: string
+}
+
+// Resumo curto do histórico, enviado junto com a pergunta
+export function buildContext(sessions: Session[], body: BodyEntry[] = []): string {
+  const bodyLines = [...body]
+    .sort((a, b) => b.date - a.date)
+    .slice(0, 6)
+    .map((e) => {
+      const date = new Date(e.date).toLocaleDateString('pt-BR')
+      const parts = BODY_FIELDS.filter((f) => e[f.key] !== undefined).map(
+        (f) => `${f.label} ${formatKg(e[f.key] ?? 0)} ${f.unit}`,
+      )
+      return `${date}: ${parts.join(', ')}`
+    })
+  const bodyText =
+    bodyLines.length > 0
+      ? `\n\nPeso e medidas corporais (mais recentes primeiro):\n${bodyLines.join('\n')}`
+      : ''
+
+  const recent = [...sessions].sort((a, b) => b.startedAt - a.startedAt).slice(0, 8)
+  if (recent.length === 0) return `O usuário ainda não finalizou nenhum treino.${bodyText}`
+
+  const lines = recent.map((s) => {
+    const date = new Date(s.startedAt).toLocaleDateString('pt-BR')
+    const exercises = s.exercises
+      .map(
+        (e) =>
+          `${e.exerciseName}: ` +
+          e.sets
+            .map(
+              (st) =>
+                `${st.kind === 'warmup' ? 'aquecimento ' : ''}${e.mode === 'time' ? `${st.seconds ?? 0}s` : `${formatKg(st.weight)}x${st.reps}`}${st.rpe !== undefined ? ` @${st.rpe}` : ''}`,
+            )
+            .join(', '),
+      )
+      .join(' | ')
+    return `${date} - ${s.name} (volume ${formatKg(sessionVolume(s))} kg): ${exercises}`
+  })
+
+  const prs = buildSummaries(sessions)
+    .filter((s) => !s.isTime)
+    .sort((a, b) => b.records.maxWeight - a.records.maxWeight)
+    .slice(0, 10)
+    .map((s) => `${s.name}: ${formatKg(s.records.maxWeight)} kg`)
+
+  return (
+    `Últimos treinos (peso em kg x reps @RPE):\n${lines.join('\n')}\n\n` +
+    `Maiores cargas: ${prs.join('; ')}` +
+    bodyText
+  )
+}
+
+// O Gemini usa "user" e "model" (em vez de "assistant")
+function toContents(history: ChatTurn[]) {
+  const out: { role: 'user' | 'model'; parts: { text: string }[] }[] = []
+  for (const turn of history.slice(-10)) {
+    const role = turn.role === 'user' ? 'user' : 'model'
+    const last = out[out.length - 1]
+    if (last && last.role === role) last.parts[0].text += `\n${turn.text}`
+    else out.push({ role, parts: [{ text: turn.text }] })
+  }
+  while (out.length > 0 && out[0].role !== 'user') out.shift()
+  return out
+}
+
+export async function askOnline(
+  apiKey: string,
+  history: ChatTurn[],
+  context: string,
+): Promise<string> {
+  const system = [
+    'Você é o assistente do FitFlow, um app pessoal de treino de musculação.',
+    'Responda sempre em português do Brasil, de forma curta e direta, em texto simples, sem markdown (sem asteriscos, sem #).',
+    'Ajude a usar o app e a orientar o treino com base nos dados abaixo.',
+    'Você não é médico: em caso de dor, lesão ou problema de saúde, recomende procurar um profissional.',
+    'Se faltar dado para responder, diga isso e peça o que falta.',
+    '',
+    'Dados do usuário:',
+    context,
+  ].join('\n')
+
+  let response: Response
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: system }] },
+          contents: toContents(history),        
+          generationConfig: { maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
+        }),
+      },
+    )
+  } catch {
+    throw new Error('Sem conexão com a internet.')
+  }
+
+  if (!response.ok) {
+    let detail = ''
+    try {
+      const body = (await response.json()) as { error?: { message?: string } }
+      detail = body.error?.message ?? ''
+    } catch {
+      // sem detalhes
+    }
+    if (response.status === 401 || response.status === 403 || /api key/i.test(detail)) {
+      throw new Error('Chave de API inválida ou sem permissão.')
+    }
+    if (response.status === 429) {
+      throw new Error('Limite de uso do Gemini atingido. Tente de novo em instantes.')
+    }
+    if (response.status === 404) {
+      throw new Error('Modelo não encontrado. Troque o valor de MODEL em online.ts.')
+    }
+    throw new Error(`Erro ${response.status}${detail ? `: ${detail}` : ''}`)
+  }
+
+  const data = (await response.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[]
+    promptFeedback?: { blockReason?: string }
+  }
+  const text = (data.candidates?.[0]?.content?.parts ?? [])
+    .map((p) => p.text ?? '')
+    .join('')
+    .trim()
+
+  if (!text) {
+    if (data.promptFeedback?.blockReason) throw new Error('A IA bloqueou esta pergunta.')
+    throw new Error('A IA não retornou texto.')
+  }
+  return text
+}

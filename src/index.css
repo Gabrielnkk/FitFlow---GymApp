@@ -1,0 +1,328 @@
+@import "tailwindcss";
+
+/* Tailwind CSS v4 directive; not an unknown CSS at-rule. */
+/* stylelint-disable at-rule-no-unknown */
+@theme {
+  /* Destaque principal (antes verde, agora azul) */
+  --color-emerald-300: #93c5fd;
+  --color-emerald-400: #60a5fa;
+  --color-emerald-500: #3b82f6;
+  --color-emerald-600: #2563eb;
+  --color-emerald-900: #1e3a8a;
+
+  /* Fundos e textos (agora azul-marinho) */
+  --color-slate-50: #f1f5ff;
+  --color-slate-200: #d6defa;
+  --color-slate-300: #b4c2ee;
+  --color-slate-400: #8497d1;
+  --color-slate-500: #5f72b0;
+  --color-slate-600: #34478f;
+  --color-slate-700: #1f3170;
+  --color-slate-800: #14214f;
+  --color-slate-900: #0b1437;
+}
+/* stylelint-enable at-rule-no-unknown */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, #0b1437 0%, #070d28 100%);
+  background-attachment: fixed;
+  color: #f1f5ff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Texto branco em tudo que tem fundo azul de destaque */
+.bg-emerald-500,
+.bg-emerald-600 {
+  color: #ffffff;
+}
+
+/* Respeita a área da barra de status em celulares com tela cheia */
+#root {
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+}
+h1 {
+  text-align: center;
+}
+@keyframes sheetUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sheet-enter {
+  animation: sheetUp 0.2s ease-out;
+}
+@keyframes tutorialPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+}
+
+.tutorial-highlight {
+  animation: tutorialPulse 1.2s infinite;
+  border-radius: 12px;
+}
+/* ===== Visual moderno (Etapa 30) ===== */
+:root {
+  --fx-from: #2563eb;
+  --fx-to: #0ea5e9;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background:
+    radial-gradient(120% 55% at 50% -8%, rgba(59, 130, 246, 0.28) 0%, transparent 62%),
+    radial-gradient(80% 40% at 100% 100%, rgba(14, 165, 233, 0.12) 0%, transparent 60%),
+    linear-gradient(180deg, #0b1437 0%, #070d28 100%);
+  background-attachment: fixed;
+}
+
+/* Títulos */
+h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #ffffff 0%, #93c5fd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+
+/* Cartões de vidro */
+.bg-slate-800 {
+  background: linear-gradient(160deg, rgba(40, 62, 140, 0.5), rgba(20, 33, 79, 0.55));
+  border: 1px solid rgba(148, 170, 255, 0.14);
+  box-shadow: 0 10px 28px rgba(3, 8, 30, 0.35);
+}
+
+.rounded-xl {
+  border-radius: 1.1rem;
+}
+
+/* Botões secundários */
+.bg-slate-700 {
+  background: rgba(148, 170, 255, 0.12);
+  border: 1px solid rgba(148, 170, 255, 0.16);
+}
+
+/* Botão principal */
+.bg-emerald-500 {
+  background-image: linear-gradient(135deg, var(--fx-from), var(--fx-to));
+  box-shadow: 0 8px 22px rgba(14, 165, 233, 0.28);
+}
+
+/* Campos */
+input,
+textarea {
+  border-radius: 0.9rem;
+}
+
+/* Animações de entrada */
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-enter {
+  animation: pageIn 0.28s ease-out;
+}
+
+/* ===== Celebração de recorde (Etapa 32) ===== */
+.pr-overlay {
+  background:
+    radial-gradient(90% 60% at 50% 38%, rgba(37, 99, 235, 0.55) 0%, transparent 70%),
+    rgba(5, 9, 28, 0.94);
+  animation: prFade 0.3s ease-out;
+}
+@keyframes prFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.pr-glow {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.35), transparent 65%);
+  animation: prPulse 1.8s ease-in-out infinite;
+}
+@keyframes prPulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+.pr-trophy {
+  position: relative;
+  font-size: 96px;
+  line-height: 1;
+  filter: drop-shadow(0 8px 24px rgba(251, 191, 36, 0.5));
+  animation: prPop 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes prPop {
+  0% { transform: scale(0) rotate(-25deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.pr-title {
+  position: relative;
+  background: linear-gradient(90deg, #fde68a, #fbbf24, #fde68a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: prRise 0.5s 0.35s ease-out both;
+}
+.pr-sub {
+  position: relative;
+  animation: prRise 0.5s 0.55s ease-out both;
+}
+@keyframes prRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+.pr-confetti {
+  position: absolute;
+  top: -24px;
+  opacity: 0;
+  animation-name: prFall;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+}
+@keyframes prFall {
+  0% { transform: translate3d(0, 0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate3d(var(--drift, 0), 105vh, 0) rotate(720deg); opacity: 0.9; }
+}
+
+/* ===== Modo claro (Etapa 36) ===== */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-slate-50: #0f1a3d;
+  --color-slate-200: #1e2b5a;
+  --color-slate-300: #33437a;
+  --color-slate-400: #5a6a9a;
+  --color-slate-500: #7886b3;
+  --color-slate-600: #b8c3e6;
+  --color-slate-700: #e1e7f9;
+  --color-slate-800: #ffffff;
+  --color-slate-900: #eef2ff;
+  --color-emerald-300: #1d4ed8;
+  --color-emerald-400: #2563eb;
+}
+
+:root[data-theme='light'] body {
+  background:
+    radial-gradient(120% 50% at 50% -10%, rgba(59, 130, 246, 0.16) 0%, transparent 62%),
+    linear-gradient(180deg, #f4f7ff 0%, #e8eeff 100%);
+  background-attachment: fixed;
+  color: #0f1a3d;
+}
+
+:root[data-theme='light'] h1 {
+  background: linear-gradient(90deg, #0f1a3d 0%, #2563eb 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+:root[data-theme='light'] .bg-slate-800 {
+  background: #ffffff;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 8px 24px rgba(37, 60, 140, 0.1);
+}
+
+:root[data-theme='light'] .bg-slate-700 {
+  background: #e1e7f9;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+}
+
+/* textos escuros que ficam em cima do botão azul passam a ser brancos */
+:root[data-theme='light'] .text-slate-900 {
+  color: #ffffff;
+}
+
+/* faixas escuras atrás da barra de status e da barra de gestos do Android */
+:root[data-theme='light'] body::before,
+:root[data-theme='light'] body::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  background: #0b1437;
+  z-index: 60;
+  pointer-events: none;
+}
+:root[data-theme='light'] body::before {
+  top: 0;
+  height: env(safe-area-inset-top, 0px);
+}
+:root[data-theme='light'] body::after {
+  bottom: 0;
+  height: env(safe-area-inset-bottom, 0px);
+}
+
+/* ===== Visual estilo Liftoff (Etapa 38): escuro, chapado, sem brilhos ===== */
+:root:not([data-theme='light']) {
+  --color-slate-50: #ffffff;
+  --color-slate-200: #e6e5f1;
+  --color-slate-300: #c3c1d6;
+  --color-slate-400: #918fa9;
+  --color-slate-500: #6e6c88;
+  --color-slate-600: #36344f;
+  --color-slate-700: #25233b;
+  --color-slate-800: #181629;
+  --color-slate-900: #0e0c1f;
+}
+
+:root:not([data-theme='light']) body {
+  background: #0e0c1f;
+  background-attachment: scroll;
+  color: #ffffff;
+}
+
+:root:not([data-theme='light']) h1 {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+:root:not([data-theme='light']) .bg-slate-800 {
+  background: #181629;
+  border: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+:root:not([data-theme='light']) .bg-slate-700 {
+  background: #25233b;
+  border: none;
+}
+
+:root:not([data-theme='light']) .bg-emerald-500 {
+  background-image: none;
+  background-color: #3b82f6;
+  box-shadow: none;
+}
