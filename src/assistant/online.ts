@@ -10,9 +10,11 @@ export const MODEL = 'gemini-3.8-flash'
 // Lista de modelos atualizada com as versões Flash mais recentes e estáveis do Google
 const MODELS = [
   MODEL,
-  'gemini-flash-latest', 
-  'gemini-2.5-flash', 
-  'gemini-1.5-flash'
+  'gemini-3.8-flash',
+  'gemini-flash-latest',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
 ]
 
 export interface ChatTurn {
