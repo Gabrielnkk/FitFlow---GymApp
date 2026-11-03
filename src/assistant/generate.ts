@@ -1,6 +1,6 @@
 import type { Exercise, WorkoutExercise } from '../types'
 import { getProfile } from '../utils/profile'
-import { MODEL } from './online'
+import { resolveModel } from './online'
 
 export interface GeneratedWorkout {
   name: string
@@ -71,7 +71,7 @@ export async function generateWorkout(
   let response: Response
   try {
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${await resolveModel(apiKey)}:generateContent`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },

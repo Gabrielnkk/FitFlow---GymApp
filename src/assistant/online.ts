@@ -6,16 +6,61 @@ import { formatKg } from '../utils/format'
 import { BODY_FIELDS } from '../db/body'
 import type { BodyEntry } from '../types'
 
-export const MODEL = 'gemini-3.8-flash'
-// Lista de modelos atualizada com as versões Flash mais recentes e estáveis do Google
-const MODELS = [
-  MODEL,
-  'gemini-3.8-flash',
-  'gemini-flash-latest',
-  'gemini-3.7-flash',
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
-]
+export const MODEL = 'gemini-2.5-flash'
+const MODEL_CACHE = 'fitflow-ai-model'
+const WEEK = 7 * 24 * 60 * 60 * 1000
+
+function versionOf(name: string): number {
+  const m = /gemini-(\d+(?:\.\d+)?)-flash$/.exec(name)
+  return m ? parseFloat(m[1]) : 0
+}
+
+/** Pergunta ao Google quais modelos existem hoje e escolhe o Flash mais novo (modelos antigos são aposentados). */
+export async function resolveModel(apiKey: string, force = false): Promise<string> {
+  try {
+    if (!force) {
+      const saved = JSON.parse(localStorage.getItem(MODEL_CACHE) ?? 'null') as { name: string; at: number } | null
+      if (saved && Date.now() - saved.at < WEEK) return saved.name
+    }
+  } catch {
+    // sem cache
+  }
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
+      headers: { 'x-goog-api-key': cleanApiKey(apiKey) },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (res.ok) {
+      const data = (await res.json()) as {
+        models?: { name?: string; supportedGenerationMethods?: string[] }[]
+      }
+      const names = (data.models ?? [])
+        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m) => (m.name ?? '').replace(/^models\//, ''))
+        .filter((n) => versionOf(n) > 0)
+        .sort((a, b) => versionOf(b) - versionOf(a))
+      if (names[0]) {
+        try {
+          localStorage.setItem(MODEL_CACHE, JSON.stringify({ name: names[0], at: Date.now() }))
+        } catch {
+          // sem cache
+        }
+        return names[0]
+      }
+    }
+  } catch {
+    // sem lista: usa o apelido que o Google mantém sempre atualizado
+  }
+  return 'gemini-flash-latest'
+}
+
+function forgetModel(): void {
+  try {
+    localStorage.removeItem(MODEL_CACHE)
+  } catch {
+    // sem cache
+  }
+}
 
 export interface ChatTurn {
   role: 'user' | 'assistant'
@@ -91,7 +136,13 @@ export async function askOnline(
   context: string,
 ): Promise<string> {
   const system = [
-    
+    'Você é o assistente do FitFlow, um app pessoal de treino de musculação.',
+    'Responda sempre em português do Brasil, de forma curta e direta, em texto simples, sem markdown (sem asteriscos, sem #).',
+    'Ajude a usar o app e a orientar o treino com base nos dados abaixo.',
+    'Você não é médico: em caso de dor, lesão ou problema de saúde, recomende procurar um profissional.',
+    'Se faltar dado para responder, diga isso e peça o que falta.',
+    '',
+    'Dados do usuário:',
     context,
   ].join('\n')
 
@@ -100,10 +151,9 @@ export async function askOnline(
 
   const url = (model: string) =>
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
-  
-  const send = (model: string) =>
+  const send = (model: string, withThinking: boolean) =>
     fetch(url(model), {
-      signal: AbortSignal.timeout(40000), // não fica "Pensando..." para sempre
+      signal: AbortSignal.timeout(20000), // não fica "Pensando..." para sempre
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
@@ -111,40 +161,45 @@ export async function askOnline(
         contents: toContents(history),
         generationConfig: {
           maxOutputTokens: 2048,
+          ...(withThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       }),
     })
 
   let response: Response | null = null
   let lastDetail = ''
-  
-  // tenta o modelo principal e, se ele falhar por motivo do modelo (404, 503, 500), os reservas
-  for (const model of MODELS) {
-    try {
-      response = await send(model)
-    } catch (err) {
-      if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
-        throw new Error('O Gemini demorou demais para responder (mais de 40 s). Tente de novo.')
+  // tenta o modelo principal e, se ele falhar por motivo do modelo, os reservas
+  const models = [...new Set([await resolveModel(key), 'gemini-flash-latest', 'gemini-2.5-flash'])]
+  for (const model of models) {
+    for (const withThinking of [true, false]) {
+      try {
+        response = await send(model, withThinking)
+      } catch (err) {
+        if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+          throw new Error('O Gemini demorou demais para responder (mais de 20 s). Tente de novo.')
+        }
+        if (!navigator.onLine) throw new Error('Sem conexão com a internet.')
+        throw new Error(
+          `Não consegui falar com o Gemini (${err instanceof Error ? err.message : 'erro de rede'}). Verifique a internet e se a chave tem só letras e números.`,
+        )
       }
-      if (!navigator.onLine) throw new Error('Sem conexão com a internet.')
-      throw new Error(
-        `Não consegui falar com o Gemini (${err instanceof Error ? err.message : 'erro de rede'}). Verifique a internet e se a chave tem só letras e números.`,
-      )
+      if (response.ok) break
+      let detail = ''
+      try {
+        const body = (await response.clone().json()) as { error?: { message?: string } }
+        detail = body.error?.message ?? ''
+      } catch {
+        // sem detalhes
+      }
+      lastDetail = detail
+      // 400 por causa do thinkingConfig: tenta de novo sem ele
+      if (response.status === 400 && withThinking && !/api key/i.test(detail)) continue
+      break
     }
-    
-    if (response.ok) break
-    
-    let detail = ''
-    try {
-      const body = (await response.clone().json()) as { error?: { message?: string } }
-      detail = body.error?.message ?? ''
-    } catch {
-      // sem detalhes
-    }
-    lastDetail = detail
-    
-    // Se o erro for de modelo não encontrado (404) ou servidor sobrecarregado (503, 500), tenta o próximo da lista
-    if (![404, 503, 500].includes(response.status)) break
+    if (response?.ok) break
+    if (response?.status === 404) forgetModel()
+    // só tenta outro modelo se este não existe ou está sobrecarregado
+    if (response && ![404, 503, 500].includes(response.status)) break
   }
 
   if (!response) throw new Error('Sem resposta do Gemini.')

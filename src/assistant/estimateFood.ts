@@ -1,4 +1,4 @@
-import { MODEL } from './online'
+import { resolveModel } from './online'
 
 export interface EstimatedFood {
   name: string
@@ -58,7 +58,7 @@ export async function estimateFood(
   let response: Response
   try {
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${await resolveModel(apiKey)}:generateContent`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
