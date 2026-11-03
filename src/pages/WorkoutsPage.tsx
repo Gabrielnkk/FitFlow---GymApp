@@ -316,6 +316,8 @@ export default function WorkoutsPage() {
       >
         ✨ Gerar treino com IA
       </button>
+      {/* espaço para o botão flutuante não cobrir o botão acima */}
+      <div className="h-24" aria-hidden />
       <button
         onClick={() => navigate('/treinos/novo')}
         className="fixed right-4 rounded-full bg-emerald-500 px-6 py-4 text-lg font-bold text-white shadow-lg active:opacity-90"

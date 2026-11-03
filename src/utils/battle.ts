@@ -59,11 +59,11 @@ export const DUNGEONS: Dungeon[] = [
     cost: 10,
     firstClearGold: 100,
     floors: [
-      { kind: 'slime', name: 'Gosma Verde', maxHp: 34, atk: 6, def: 1, gold: 8 },
-      { kind: 'goblin', name: 'Goblin Ladrão', maxHp: 46, atk: 9, def: 2, gold: 12 },
-      { kind: 'skeleton', name: 'Esqueleto Guarda', maxHp: 56, atk: 11, def: 3, gold: 16 },
-      { kind: 'goblin', name: 'Goblin Capitão', maxHp: 66, atk: 12, def: 4, gold: 20 },
-      { kind: 'golem', name: 'Golem de Pedra', maxHp: 120, atk: 14, def: 6, gold: 60, boss: true },
+      { kind: 'slime', name: 'Gosma Verde', maxHp: 34, atk: 5.8, def: 1, gold: 8 },
+      { kind: 'goblin', name: 'Goblin Ladrão', maxHp: 46, atk: 8.6, def: 2, gold: 12 },
+      { kind: 'skeleton', name: 'Esqueleto Guarda', maxHp: 56, atk: 10.6, def: 3, gold: 16 },
+      { kind: 'goblin', name: 'Goblin Capitão', maxHp: 66, atk: 11.5, def: 4, gold: 20 },
+      { kind: 'golem', name: 'Golem de Pedra', maxHp: 120, atk: 13.4, def: 6, gold: 60, boss: true },
     ],
   },
   {
@@ -73,11 +73,11 @@ export const DUNGEONS: Dungeon[] = [
     cost: 15,
     firstClearGold: 200,
     floors: [
-      { kind: 'bat', name: 'Morcego Sombrio', maxHp: 112, atk: 19, def: 4, gold: 14 },
-      { kind: 'skeleton', name: 'Esqueleto Soldado', maxHp: 152, atk: 29, def: 6, gold: 22 },
-      { kind: 'goblin', name: 'Goblin Arqueiro', maxHp: 184, atk: 35, def: 10, gold: 29 },
-      { kind: 'bat', name: 'Morcego Gigante', maxHp: 215, atk: 38, def: 13, gold: 36 },
-      { kind: 'orc', name: 'Orc Berserker', maxHp: 383, atk: 45, def: 19, gold: 108, boss: true },
+      { kind: 'bat', name: 'Morcego Sombrio', maxHp: 112, atk: 18, def: 4, gold: 14 },
+      { kind: 'skeleton', name: 'Esqueleto Soldado', maxHp: 152, atk: 27, def: 6, gold: 22 },
+      { kind: 'goblin', name: 'Goblin Arqueiro', maxHp: 184, atk: 33, def: 10, gold: 29 },
+      { kind: 'bat', name: 'Morcego Gigante', maxHp: 215, atk: 36, def: 13, gold: 36 },
+      { kind: 'orc', name: 'Orc Berserker', maxHp: 383, atk: 42, def: 19, gold: 108, boss: true },
     ],
   },
   {
@@ -87,11 +87,11 @@ export const DUNGEONS: Dungeon[] = [
     cost: 20,
     firstClearGold: 350,
     floors: [
-      { kind: 'goblin', name: 'Goblin Saqueador', maxHp: 244, atk: 30, def: 8, gold: 24 },
-      { kind: 'orc', name: 'Orc Guerreiro', maxHp: 331, atk: 44, def: 14, gold: 36 },
-      { kind: 'skeleton', name: 'Esqueleto Cavaleiro', maxHp: 401, atk: 54, def: 21, gold: 48 },
-      { kind: 'orc', name: 'Orc Brutamontes', maxHp: 471, atk: 59, def: 27, gold: 60 },
-      { kind: 'orc', name: 'Senhor da Guerra', maxHp: 837, atk: 69, def: 42, gold: 180, boss: true },
+      { kind: 'goblin', name: 'Goblin Saqueador', maxHp: 244, atk: 28, def: 8, gold: 24 },
+      { kind: 'orc', name: 'Orc Guerreiro', maxHp: 331, atk: 42, def: 14, gold: 36 },
+      { kind: 'skeleton', name: 'Esqueleto Cavaleiro', maxHp: 401, atk: 51, def: 21, gold: 48 },
+      { kind: 'orc', name: 'Orc Brutamontes', maxHp: 471, atk: 56, def: 27, gold: 60 },
+      { kind: 'orc', name: 'Senhor da Guerra', maxHp: 837, atk: 65, def: 42, gold: 180, boss: true },
     ],
   },
   {
@@ -101,11 +101,11 @@ export const DUNGEONS: Dungeon[] = [
     cost: 25,
     firstClearGold: 500,
     floors: [
-      { kind: 'skeleton', name: 'Esqueleto Necromante', maxHp: 397, atk: 43, def: 13, gold: 36 },
-      { kind: 'wraith', name: 'Espectro', maxHp: 539, atk: 65, def: 22, gold: 54 },
-      { kind: 'bat', name: 'Morcego Vampiro', maxHp: 653, atk: 80, def: 32, gold: 72 },
-      { kind: 'wraith', name: 'Espectro Ancião', maxHp: 766, atk: 87, def: 43, gold: 90 },
-      { kind: 'golem', name: 'Golem de Obsidiana', maxHp: 1362, atk: 101, def: 65, gold: 270, boss: true },
+      { kind: 'skeleton', name: 'Esqueleto Necromante', maxHp: 397, atk: 40, def: 13, gold: 36 },
+      { kind: 'wraith', name: 'Espectro', maxHp: 539, atk: 61, def: 22, gold: 54 },
+      { kind: 'bat', name: 'Morcego Vampiro', maxHp: 653, atk: 74, def: 32, gold: 72 },
+      { kind: 'wraith', name: 'Espectro Ancião', maxHp: 766, atk: 81, def: 43, gold: 90 },
+      { kind: 'golem', name: 'Golem de Obsidiana', maxHp: 1362, atk: 94, def: 65, gold: 270, boss: true },
     ],
   },
   {
@@ -115,11 +115,11 @@ export const DUNGEONS: Dungeon[] = [
     cost: 30,
     firstClearGold: 700,
     floors: [
-      { kind: 'wraith', name: 'Banshee', maxHp: 625, atk: 65, def: 19, gold: 52 },
-      { kind: 'orc', name: 'Orc de Elite', maxHp: 848, atk: 98, def: 33, gold: 78 },
-      { kind: 'golem', name: 'Golem de Ferro', maxHp: 1026, atk: 120, def: 49, gold: 104 },
-      { kind: 'wraith', name: 'Fantasma Real', maxHp: 1205, atk: 131, def: 64, gold: 130 },
-      { kind: 'dragon', name: 'Dragão Negro', maxHp: 2142, atk: 153, def: 97, gold: 390, boss: true },
+      { kind: 'wraith', name: 'Banshee', maxHp: 625, atk: 61, def: 19, gold: 52 },
+      { kind: 'orc', name: 'Orc de Elite', maxHp: 848, atk: 91, def: 33, gold: 78 },
+      { kind: 'golem', name: 'Golem de Ferro', maxHp: 1026, atk: 111, def: 49, gold: 104 },
+      { kind: 'wraith', name: 'Fantasma Real', maxHp: 1205, atk: 121, def: 64, gold: 130 },
+      { kind: 'dragon', name: 'Dragão Negro', maxHp: 2142, atk: 142, def: 97, gold: 390, boss: true },
     ],
   },
   {
@@ -129,11 +129,11 @@ export const DUNGEONS: Dungeon[] = [
     cost: 40,
     firstClearGold: 1200,
     floors: [
-      { kind: 'orc', name: 'Orc Lendário', maxHp: 987, atk: 91, def: 28, gold: 72 },
-      { kind: 'golem', name: 'Golem de Cristal', maxHp: 1340, atk: 137, def: 48, gold: 108 },
-      { kind: 'wraith', name: 'Rei Espectral', maxHp: 1621, atk: 167, def: 71, gold: 144 },
-      { kind: 'dragon', name: 'Dragão Jovem', maxHp: 1904, atk: 182, def: 93, gold: 180 },
-      { kind: 'dragon', name: 'Dragão Ancião', maxHp: 3384, atk: 213, def: 141, gold: 540, boss: true },
+      { kind: 'orc', name: 'Orc Lendário', maxHp: 987, atk: 86, def: 28, gold: 72 },
+      { kind: 'golem', name: 'Golem de Cristal', maxHp: 1340, atk: 129, def: 48, gold: 108 },
+      { kind: 'wraith', name: 'Rei Espectral', maxHp: 1621, atk: 157, def: 71, gold: 144 },
+      { kind: 'dragon', name: 'Dragão Jovem', maxHp: 1904, atk: 171, def: 93, gold: 180 },
+      { kind: 'dragon', name: 'Dragão Ancião', maxHp: 3384, atk: 200, def: 141, gold: 540, boss: true },
     ],
   },
 ]
@@ -253,6 +253,8 @@ export interface BattleState {
 export type Rng = () => number
 
 const STRONG_COOLDOWN = 3
+/** Parte da vida máxima que você recupera ao fim de cada rodada (entre 1% e 5%). */
+export const REGEN_PER_ROUND = 0.02
 const spread = (rng: Rng) => 0.85 + rng() * 0.3
 
 function isHeavy(m: Monster, acts: number): boolean {
@@ -339,6 +341,7 @@ export function playTurn(
 
   // ----- fim da rodada -----
   s.turn += 1
+  s.playerHp = Math.min(p.maxHp, s.playerHp + Math.max(1, Math.round(p.maxHp * REGEN_PER_ROUND)))
   if (s.strongCd > 0) s.strongCd -= defending ? 2 : 1
   if (s.strongCd < 0) s.strongCd = 0
   s.telegraph = isHeavy(m, s.monsterActs)

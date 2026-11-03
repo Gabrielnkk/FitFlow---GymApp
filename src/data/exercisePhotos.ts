@@ -222,7 +222,7 @@ const RULES: [RegExp, string, string][] = [
   [/farmer|caminhada do fazendeiro/, 'Farmers_Walk', 'Farmer\'s Walk'],
 ]
 
-const BASE = '/' // o app é servido na raiz (navegador e Capacitor)
+const BASE = import.meta.env.BASE_URL // "/" no APK e no dev; "/FitFlow---GymApp/" no GitHub Pages
 
 function build(id: string, title: string): ExercisePhotos {
   return { id, title, src: [`${BASE}exercises/${id}/0.jpg`, `${BASE}exercises/${id}/1.jpg`] }

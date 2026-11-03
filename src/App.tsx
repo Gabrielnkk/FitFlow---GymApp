@@ -21,6 +21,8 @@ import NutritionPage from './pages/NutritionPage'
 import CharacterPage from './pages/CharacterPage'
 import GamePage from './pages/GamePage'
 import ShopPage from './pages/ShopPage'
+import Splash from './components/Splash'
+import InstallHint from './components/InstallHint'
 
 ensureDefaultExercises()
 
@@ -38,7 +40,6 @@ function App() {
           <Route path="/historico" element={<HistoryPage />} />
           <Route path="/historico/:id" element={<SessionDetailPage />} />
           <Route path="/progresso" element={<ProgressPage />} />
-          <Route path="/progresso" element={<ProgressPage />} />
           <Route path="/progresso/corpo" element={<BodyPage />} />
           <Route path="/progresso/volume" element={<VolumePage />} />
           <Route path="/assistente" element={<AssistantPage />} />
@@ -53,6 +54,8 @@ function App() {
         </Route>
       </Routes>
       <Tutorial />
+      <Splash /> 
+      <InstallHint />
     </HashRouter>
   )
 }

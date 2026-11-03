@@ -183,7 +183,7 @@ export default function GamePage() {
   function nextFloor() {
     if (!run || !battle || !stats) return
     const floor = run.floor + 1
-    const hp = Math.min(stats.maxHp, battle.playerHp + Math.round(stats.maxHp * 0.25))
+    const hp = battle.playerHp // a vida não volta entre andares: só pela regeneração por rodada e pelas poções
     setRun({ ...run, floor })
     const next = run.tower ? towerMonster(run.tower.start + floor) : run.dungeon.floors[floor]
     setBattle(newBattle(stats, next, run.potions, hp))
@@ -360,7 +360,7 @@ export default function GamePage() {
                 🪙 +{lastLoot.gold} ouro{lastLoot.potions > 0 ? ' · 🧪 +1 poção' : ''}
               </div>
             )}
-            <div className="mt-1 text-xs text-slate-500">Você recupera um pouco de vida ao descer.</div>
+            <div className="mt-1 text-xs text-slate-500">Sua vida não se recupera entre os andares. Use poções com sabedoria.</div>
             <button
               onClick={nextFloor}
               className="mt-3 w-full rounded-2xl bg-emerald-500 py-3.5 text-lg font-bold text-white active:opacity-80"

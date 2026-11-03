@@ -1,3 +1,4 @@
+import { cleanApiKey } from './config'
 import { sessionVolume } from '../db/history'
 import { buildSummaries } from '../db/progress'
 import type { Session } from '../types'
@@ -6,6 +7,7 @@ import { BODY_FIELDS } from '../db/body'
 import type { BodyEntry } from '../types'
 
 export const MODEL = 'gemini-2.5-flash'
+const MODELS = [MODEL, 'gemini-flash-latest', 'gemini-2.0-flash']
 
 export interface ChatTurn {
   role: 'user' | 'assistant'
@@ -91,43 +93,71 @@ export async function askOnline(
     context,
   ].join('\n')
 
-  let response: Response
-  try {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-goog-api-key': apiKey,
+  const key = cleanApiKey(apiKey)
+  if (!key) throw new Error('Cole a chave de API do Gemini nos Ajustes.')
+
+  const url = (model: string) =>
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+  const send = (model: string, withThinking: boolean) =>
+    fetch(url(model), {
+      signal: AbortSignal.timeout(20000), // não fica "Pensando..." para sempre
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: system }] },
+        contents: toContents(history),
+        generationConfig: {
+          maxOutputTokens: 2048,
+          ...(withThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: system }] },
-          contents: toContents(history),        
-          generationConfig: { maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
-        }),
-      },
-    )
-  } catch {
-    throw new Error('Sem conexão com a internet.')
+      }),
+    })
+
+  let response: Response | null = null
+  let lastDetail = ''
+  // tenta o modelo principal e, se ele falhar por motivo do modelo, os reservas
+  for (const model of MODELS) {
+    for (const withThinking of [true, false]) {
+      try {
+        response = await send(model, withThinking)
+      } catch (err) {
+        if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+          throw new Error('O Gemini demorou demais para responder (mais de 20 s). Tente de novo.')
+        }
+        if (!navigator.onLine) throw new Error('Sem conexão com a internet.')
+        throw new Error(
+          `Não consegui falar com o Gemini (${err instanceof Error ? err.message : 'erro de rede'}). Verifique a internet e se a chave tem só letras e números.`,
+        )
+      }
+      if (response.ok) break
+      let detail = ''
+      try {
+        const body = (await response.clone().json()) as { error?: { message?: string } }
+        detail = body.error?.message ?? ''
+      } catch {
+        // sem detalhes
+      }
+      lastDetail = detail
+      // 400 por causa do thinkingConfig: tenta de novo sem ele
+      if (response.status === 400 && withThinking && !/api key/i.test(detail)) continue
+      break
+    }
+    if (response?.ok) break
+    // só tenta outro modelo se este não existe ou está sobrecarregado
+    if (response && ![404, 503, 500].includes(response.status)) break
   }
 
+  if (!response) throw new Error('Sem resposta do Gemini.')
   if (!response.ok) {
-    let detail = ''
-    try {
-      const body = (await response.json()) as { error?: { message?: string } }
-      detail = body.error?.message ?? ''
-    } catch {
-      // sem detalhes
-    }
+    const detail = lastDetail
     if (response.status === 401 || response.status === 403 || /api key/i.test(detail)) {
-      throw new Error('Chave de API inválida ou sem permissão.')
+      throw new Error(`Chave de API inválida ou sem permissão.${detail ? ` (${detail})` : ''}`)
     }
     if (response.status === 429) {
       throw new Error('Limite de uso do Gemini atingido. Tente de novo em instantes.')
     }
-    if (response.status === 404) {
-      throw new Error('Modelo não encontrado. Troque o valor de MODEL em online.ts.')
+    if (response.status === 503) {
+      throw new Error('O Gemini está sobrecarregado agora. Tente de novo em alguns segundos.')
     }
     throw new Error(`Erro ${response.status}${detail ? `: ${detail}` : ''}`)
   }

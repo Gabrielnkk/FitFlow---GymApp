@@ -3,9 +3,14 @@ const MODE_NAME = 'fitflow-ai-mode'
 
 export type AssistantMode = 'offline' | 'online'
 
+// Tira espaços, quebras de linha, aspas e caracteres invisíveis (comuns ao copiar pelo WhatsApp)
+export function cleanApiKey(value: string): string {
+  return value.replace(/[^\x21-\x7E]/g, '').replace(/^["'`]+|["'`]+$/g, '')
+}
+
 export function getApiKey(): string {
   try {
-    return localStorage.getItem(KEY_NAME) ?? ''
+    return cleanApiKey(localStorage.getItem(KEY_NAME) ?? '')
   } catch {
     return ''
   }
@@ -13,7 +18,8 @@ export function getApiKey(): string {
 
 export function setApiKey(value: string): void {
   try {
-    if (value) localStorage.setItem(KEY_NAME, value)
+    const key = cleanApiKey(value)
+    if (key) localStorage.setItem(KEY_NAME, key)
     else localStorage.removeItem(KEY_NAME)
   } catch {
     // sem armazenamento, sem problema
