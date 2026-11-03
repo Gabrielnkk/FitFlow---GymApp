@@ -91,13 +91,7 @@ export async function askOnline(
   context: string,
 ): Promise<string> {
   const system = [
-    'Você é o assistente do FitFlow, um app pessoal de treino de musculação.',
-    'Responda sempre em português do Brasil, de forma curta e direta, em texto simples, sem markdown (sem asteriscos, sem #).',
-    'Ajude a usar o app e a orientar o treino com base nos dados abaixo.',
-    'Você não é médico: em caso de dor, lesão ou problema de saúde, recomende procurar um profissional.',
-    'Se faltar dado para responder, diga isso e peça o que falta.',
-    '',
-    'Dados do usuário:',
+    
     context,
   ].join('\n')
 
@@ -130,7 +124,7 @@ export async function askOnline(
       response = await send(model)
     } catch (err) {
       if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
-        throw new Error('O Gemini demorou demais para responder (mais de 20 s). Tente de novo.')
+        throw new Error('O Gemini demorou demais para responder (mais de 40 s). Tente de novo.')
       }
       if (!navigator.onLine) throw new Error('Sem conexão com a internet.')
       throw new Error(
