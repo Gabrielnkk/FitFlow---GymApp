@@ -176,10 +176,12 @@ export async function askOnline(
 
   let response: Response | null = null
   let lastDetail = ''
+  let lastModel = ''
   // tenta o modelo principal e, se ele falhar por motivo do modelo, os reservas
-  const models = [...new Set([await resolveModel(key), 'gemini-flash-latest', 'gemini-2.5-flash'])]
+  const models = [...new Set([await resolveModel(key), 'gemini-flash-latest', 'gemini-flash-lite-latest'])]
   for (let mi = 0; mi < models.length; mi++) {
     const model = models[mi]
+    lastModel = model
     for (const withThinking of [true, false]) {
       try {
         response = await send(model, withThinking)
@@ -214,7 +216,7 @@ export async function askOnline(
     if (response?.ok) break
     if (response?.status === 404) forgetModel()
     // só tenta outro modelo se este não existe ou está sobrecarregado
-    if (response && ![404, 503, 500].includes(response.status)) break
+    if (response && ![404, 429, 503, 500].includes(response.status)) break
   }
 
   if (!response) throw new Error('Sem resposta do Gemini.')
@@ -224,7 +226,9 @@ export async function askOnline(
       throw new Error(`Chave de API inválida ou sem permissão.${detail ? ` (${detail})` : ''}`)
     }
     if (response.status === 429) {
-      throw new Error('Limite de uso do Gemini atingido. Tente de novo em instantes.')
+      throw new Error(
+        `Limite de uso do Gemini atingido (${lastModel}). Espere 1 minuto e tente de novo.${detail ? ` Detalhe: ${detail.slice(0, 220)}` : ''}`,
+      )
     }
     if (response.status === 503) {
       throw new Error('O Gemini está sobrecarregado agora. Tente de novo em alguns segundos.')
