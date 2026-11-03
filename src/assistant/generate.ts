@@ -1,6 +1,7 @@
+// made by: Gabriel Mattos
 import type { Exercise, WorkoutExercise } from '../types'
 import { getProfile } from '../utils/profile'
-import { resolveModel } from './online'
+import { postGemini } from './online'
 
 export interface GeneratedWorkout {
   name: string
@@ -70,18 +71,11 @@ export async function generateWorkout(
 
   let response: Response
   try {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${await resolveModel(apiKey)}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: system }] },
-          contents: [{ role: 'user', parts: [{ text: request }] }],
-          generationConfig: { maxOutputTokens: 2048, responseMimeType: 'application/json' },
-        }),
-      },
-    )
+    response = await postGemini(apiKey, {
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: request }] }],
+      generationConfig: { maxOutputTokens: 2048, responseMimeType: 'application/json' },
+    })
   } catch {
     throw new Error('Sem conexão com a internet.')
   }

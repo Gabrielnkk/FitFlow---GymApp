@@ -1,4 +1,5 @@
-import { resolveModel } from './online'
+// made by: Gabriel Mattos
+import { postGemini } from './online'
 
 export interface EstimatedFood {
   name: string
@@ -57,18 +58,11 @@ export async function estimateFood(
 
   let response: Response
   try {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${await resolveModel(apiKey)}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: system }] },
-          contents: [{ role: 'user', parts }],
-          generationConfig: { maxOutputTokens: 2048, responseMimeType: 'application/json' },
-        }),
-      },
-    )
+    response = await postGemini(apiKey, {
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts }],
+      generationConfig: { maxOutputTokens: 2048, responseMimeType: 'application/json' },
+    })
   } catch {
     throw new Error('Sem conexão com a internet.')
   }

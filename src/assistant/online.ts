@@ -1,3 +1,4 @@
+// made by: Gabriel Mattos
 import { cleanApiKey } from './config'
 import { sessionVolume } from '../db/history'
 import { buildSummaries } from '../db/progress'
@@ -68,6 +69,31 @@ function forgetModel(): void {
   } catch {
     // sem cache
   }
+}
+
+/** Chamada única ao Gemini com reserva: se o modelo guardado deu 404 (aposentado), tenta os outros. */
+export async function postGemini(apiKey: string, body: unknown): Promise<Response> {
+  const key = cleanApiKey(apiKey)
+  const models = [...new Set([await resolveModel(key), 'gemini-flash-latest', 'gemini-flash-lite-latest'])]
+  let res!: Response
+  for (const model of models) {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify(body),
+      },
+    )
+    if (res.ok) {
+      rememberModel(model)
+      return res
+    }
+    if (res.status === 404) forgetModel()
+    // só tenta outro modelo se este não existe ou está sobrecarregado
+    if (![404, 429, 503, 500].includes(res.status)) break
+  }
+  return res
 }
 
 export interface ChatTurn {
