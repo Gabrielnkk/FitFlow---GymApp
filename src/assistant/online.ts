@@ -6,8 +6,8 @@ import { formatKg } from '../utils/format'
 import { BODY_FIELDS } from '../db/body'
 import type { BodyEntry } from '../types'
 
-export const MODEL = 'gemini-2.5-flash'
-const MODELS = [MODEL, 'gemini-flash-latest', 'gemini-2.0-flash']
+export const MODEL = 'gemini-3.8-flash'
+const MODELS = [MODEL, 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.4-flash', 'gemini-3.3-flash', 'gemini-3.2-flash', 'gemini-3.1-flash', 'gemini-3.0-flash']
 
 export interface ChatTurn {
   role: 'user' | 'assistant'
