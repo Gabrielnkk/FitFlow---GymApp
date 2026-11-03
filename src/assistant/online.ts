@@ -7,7 +7,13 @@ import { BODY_FIELDS } from '../db/body'
 import type { BodyEntry } from '../types'
 
 export const MODEL = 'gemini-3.8-flash'
-const MODELS = [MODEL, 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.4-flash', 'gemini-3.3-flash', 'gemini-3.2-flash', 'gemini-3.1-flash', 'gemini-3.0-flash']
+// Lista de modelos atualizada com as versões Flash mais recentes e estáveis do Google
+const MODELS = [
+  MODEL,
+  'gemini-flash-latest', 
+  'gemini-2.5-flash', 
+  'gemini-1.5-flash'
+]
 
 export interface ChatTurn {
   role: 'user' | 'assistant'
@@ -98,7 +104,8 @@ export async function askOnline(
 
   const url = (model: string) =>
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
-  const send = (model: string, withThinking: boolean) =>
+  
+  const send = (model: string) =>
     fetch(url(model), {
       signal: AbortSignal.timeout(20000), // não fica "Pensando..." para sempre
       method: 'POST',
@@ -108,43 +115,40 @@ export async function askOnline(
         contents: toContents(history),
         generationConfig: {
           maxOutputTokens: 2048,
-          ...(withThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       }),
     })
 
   let response: Response | null = null
   let lastDetail = ''
-  // tenta o modelo principal e, se ele falhar por motivo do modelo, os reservas
+  
+  // tenta o modelo principal e, se ele falhar por motivo do modelo (404, 503, 500), os reservas
   for (const model of MODELS) {
-    for (const withThinking of [true, false]) {
-      try {
-        response = await send(model, withThinking)
-      } catch (err) {
-        if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
-          throw new Error('O Gemini demorou demais para responder (mais de 20 s). Tente de novo.')
-        }
-        if (!navigator.onLine) throw new Error('Sem conexão com a internet.')
-        throw new Error(
-          `Não consegui falar com o Gemini (${err instanceof Error ? err.message : 'erro de rede'}). Verifique a internet e se a chave tem só letras e números.`,
-        )
+    try {
+      response = await send(model)
+    } catch (err) {
+      if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+        throw new Error('O Gemini demorou demais para responder (mais de 20 s). Tente de novo.')
       }
-      if (response.ok) break
-      let detail = ''
-      try {
-        const body = (await response.clone().json()) as { error?: { message?: string } }
-        detail = body.error?.message ?? ''
-      } catch {
-        // sem detalhes
-      }
-      lastDetail = detail
-      // 400 por causa do thinkingConfig: tenta de novo sem ele
-      if (response.status === 400 && withThinking && !/api key/i.test(detail)) continue
-      break
+      if (!navigator.onLine) throw new Error('Sem conexão com a internet.')
+      throw new Error(
+        `Não consegui falar com o Gemini (${err instanceof Error ? err.message : 'erro de rede'}). Verifique a internet e se a chave tem só letras e números.`,
+      )
     }
-    if (response?.ok) break
-    // só tenta outro modelo se este não existe ou está sobrecarregado
-    if (response && ![404, 503, 500].includes(response.status)) break
+    
+    if (response.ok) break
+    
+    let detail = ''
+    try {
+      const body = (await response.clone().json()) as { error?: { message?: string } }
+      detail = body.error?.message ?? ''
+    } catch {
+      // sem detalhes
+    }
+    lastDetail = detail
+    
+    // Se o erro for de modelo não encontrado (404) ou servidor sobrecarregado (503, 500), tenta o próximo da lista
+    if (![404, 503, 500].includes(response.status)) break
   }
 
   if (!response) throw new Error('Sem resposta do Gemini.')
