@@ -107,7 +107,7 @@ export async function askOnline(
   
   const send = (model: string) =>
     fetch(url(model), {
-      signal: AbortSignal.timeout(20000), // não fica "Pensando..." para sempre
+      signal: AbortSignal.timeout(40000), // não fica "Pensando..." para sempre
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
