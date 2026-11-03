@@ -54,6 +54,14 @@ export async function resolveModel(apiKey: string, force = false): Promise<strin
   return 'gemini-flash-latest'
 }
 
+function rememberModel(name: string): void {
+  try {
+    localStorage.setItem(MODEL_CACHE, JSON.stringify({ name, at: Date.now() }))
+  } catch {
+    // sem cache
+  }
+}
+
 function forgetModel(): void {
   try {
     localStorage.removeItem(MODEL_CACHE)
@@ -153,7 +161,7 @@ export async function askOnline(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
   const send = (model: string, withThinking: boolean) =>
     fetch(url(model), {
-      signal: AbortSignal.timeout(20000), // não fica "Pensando..." para sempre
+      signal: AbortSignal.timeout(30000), // não fica "Pensando..." para sempre
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
@@ -170,20 +178,24 @@ export async function askOnline(
   let lastDetail = ''
   // tenta o modelo principal e, se ele falhar por motivo do modelo, os reservas
   const models = [...new Set([await resolveModel(key), 'gemini-flash-latest', 'gemini-2.5-flash'])]
-  for (const model of models) {
+  for (let mi = 0; mi < models.length; mi++) {
+    const model = models[mi]
     for (const withThinking of [true, false]) {
       try {
         response = await send(model, withThinking)
       } catch (err) {
         if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
-          throw new Error('O Gemini demorou demais para responder (mais de 20 s). Tente de novo.')
+          throw new Error(`O Gemini (${model}) não respondeu em 30 s. Se só acontece neste aparelho, teste o link de diagnóstico do guia.`)
         }
         if (!navigator.onLine) throw new Error('Sem conexão com a internet.')
         throw new Error(
           `Não consegui falar com o Gemini (${err instanceof Error ? err.message : 'erro de rede'}). Verifique a internet e se a chave tem só letras e números.`,
         )
       }
-      if (response.ok) break
+      if (response.ok) {
+        rememberModel(model)
+        break
+      }
       let detail = ''
       try {
         const body = (await response.clone().json()) as { error?: { message?: string } }
@@ -192,6 +204,9 @@ export async function askOnline(
         // sem detalhes
       }
       lastDetail = detail
+      // o Google diz no próprio erro qual modelo usar no lugar ("use models/gemini-X-flash")
+      const hint = /models\/(gemini[\w.-]+)\s+for the latest/i.exec(detail)?.[1]
+      if (response.status === 404 && hint && !models.includes(hint)) models.splice(mi + 1, 0, hint)
       // 400 por causa do thinkingConfig: tenta de novo sem ele
       if (response.status === 400 && withThinking && !/api key/i.test(detail)) continue
       break
