@@ -1,7 +1,10 @@
+// made by: Gabriel Mattos
 // Fotos de início e fim de cada exercício (banco free-exercise-db, domínio público).
 // As imagens ficam em public/exercises/<id>/0.jpg e 1.jpg e vão dentro do app, funcionam sem internet.
 // 1º) nome exato dos exercícios padrão do app; 2º) regras por palavra, para exercícios criados por você.
 // Quando não existe foto equivalente, o valor é null e o app mostra o boneco.
+
+import { EXTRA_ITEMS } from './extraExercises'
 
 export interface ExercisePhotos {
   id: string
@@ -73,7 +76,7 @@ const EXACT: Record<string, [string, string] | null> = {
   'agachamento livre': ['Barbell_Full_Squat', 'Barbell Full Squat'],
   'agachamento frontal': ['Front_Barbell_Squat', 'Front Barbell Squat'],
   'agachamento no smith': ['Smith_Machine_Squat', 'Smith Machine Squat'],
-  'agachamento bulgaro': null,
+  'agachamento bulgaro': ['Smith_Single-Leg_Split_Squat', 'Smith Single-Leg Split Squat'],
   'agachamento hack': ['Hack_Squat', 'Hack Squat'],
   'agachamento sumo': ['Plie_Dumbbell_Squat', 'Plie Dumbbell Squat'],
   'leg press 45°': ['Leg_Press', 'Leg Press'],
@@ -105,7 +108,7 @@ const EXACT: Record<string, [string, string] | null> = {
   'panturrilha em pe': ['Standing_Calf_Raises', 'Standing Calf Raises'],
   'panturrilha sentado': ['Seated_Calf_Raise', 'Seated Calf Raise'],
   'panturrilha no leg press': ['Calf_Press_On_The_Leg_Press_Machine', 'Calf Press On The Leg Press Machine'],
-  'panturrilha no degrau': null,
+  'panturrilha no degrau': ['Standing_Dumbbell_Calf_Raise', 'Standing Dumbbell Calf Raise'],
   'esteira': ['Running_Treadmill', 'Running, Treadmill'],
   'bicicleta ergometrica': ['Bicycling_Stationary', 'Bicycling, Stationary'],
   'eliptico': ['Elliptical_Trainer', 'Elliptical Trainer'],
@@ -117,8 +120,13 @@ const EXACT: Record<string, [string, string] | null> = {
   'corrida': ['Running_Treadmill', 'Running, Treadmill'],
   'rosca de punho': ['Palms-Up_Dumbbell_Wrist_Curl_Over_A_Bench', 'Palms-Up Dumbbell Wrist Curl Over A Bench'],
   'rosca de punho inversa': ['Palms-Down_Dumbbell_Wrist_Curl_Over_A_Bench', 'Palms-Down Dumbbell Wrist Curl Over A Bench'],
-  'alongamento geral': null,
+  'alongamento geral': ['Worlds_Greatest_Stretch', 'World\'s Greatest Stretch'],
 }
+
+// Exercícios extras: o nome exato (sem acento) aponta para a foto certa
+const EXTRA: Record<string, [string, string]> = Object.fromEntries(
+  EXTRA_ITEMS.map(([name, , , id, title]) => [norm(name), [id, title]]),
+)
 
 const RULES: [RegExp, string, string][] = [
   [/supino.*inclinad.*(halter|haltere)/, 'Incline_Dumbbell_Press', 'Incline Dumbbell Press'],
@@ -234,6 +242,8 @@ export function photosFor(exerciseName: string): ExercisePhotos | null {
     const hit = EXACT[n]
     return hit ? build(hit[0], hit[1]) : null
   }
+  const extra = EXTRA[n]
+  if (extra) return build(extra[0], extra[1])
   for (const [re, id, title] of RULES) {
     if (re.test(n)) return build(id, title)
   }

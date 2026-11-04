@@ -1,9 +1,11 @@
+// made by: Gabriel Mattos
 import { db } from './database'
-import { buildDefaultExercises } from './seed'
+import { buildDefaultExercises, buildExtraExercises } from './seed'
 import { buildTimeExercises, TIME_EXERCISE_NAMES } from './timeExercises'
 
 const FLAG_V2 = 'fitflow-default-exercises-v2'
 const FLAG_TIME = 'fitflow-time-exercises-v1'
+const FLAG_EXTRA = 'fitflow-extra-exercises-v1'
 
 // Adiciona os exercícios padrão que faltam (uma vez só)
 async function ensureV2(): Promise<void> {
@@ -42,7 +44,23 @@ async function ensureTimeExercises(): Promise<void> {
   }
 }
 
+// Adiciona os exercícios extras com foto que ainda não existem (uma vez só)
+async function ensureExtraExercises(): Promise<void> {
+  try {
+    if (localStorage.getItem(FLAG_EXTRA)) return
+    await db.transaction('rw', db.exercises, async () => {
+      const existing = new Set((await db.exercises.toArray()).map((e) => e.name.toLowerCase()))
+      const missing = buildExtraExercises().filter((e) => !existing.has(e.name.toLowerCase()))
+      if (missing.length > 0) await db.exercises.bulkAdd(missing)
+    })
+    localStorage.setItem(FLAG_EXTRA, '1')
+  } catch {
+    // tenta de novo na próxima abertura
+  }
+}
+
 export async function ensureDefaultExercises(): Promise<void> {
   await ensureV2()
   await ensureTimeExercises()
+  await ensureExtraExercises()
 }

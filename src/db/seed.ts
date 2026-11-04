@@ -1,5 +1,7 @@
+// made by: Gabriel Mattos
 import type { Exercise, MuscleGroup } from '../types'
 import { newId } from '../utils/id'
+import { EXTRA_ITEMS } from '../data/extraExercises'
 
 type SeedItem = [name: string, group: MuscleGroup, equipment: string]
 
@@ -90,7 +92,6 @@ const items: SeedItem[] = [
   ['Stiff com halteres', 'Glúteos', 'Halteres'],
   ['Elevação pélvica', 'Glúteos', 'Barra'],
   ['Glúteo na polia (coice)', 'Glúteos', 'Polia'],
-  ['Glúteo na máquina', 'Glúteos', 'Máquina'],
   ['Abdução de quadril', 'Glúteos', 'Elástico'],
 
   // Abdômen
@@ -129,6 +130,17 @@ const items: SeedItem[] = [
 
 export function buildDefaultExercises(): Exercise[] {
   return items.map(([name, muscleGroup, equipment]) => ({
+    id: newId(),
+    name,
+    muscleGroup,
+    equipment,
+    notes: '',
+    isDefault: true,
+  }))
+}
+// Exercícios extras (banco com fotos), adicionados uma vez só em ensureDefaults
+export function buildExtraExercises(): Exercise[] {
+  return EXTRA_ITEMS.map(([name, muscleGroup, equipment]) => ({
     id: newId(),
     name,
     muscleGroup,
