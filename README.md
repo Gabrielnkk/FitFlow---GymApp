@@ -69,3 +69,8 @@ O arquivo fica em:
 
 Em Ajustes, use "Exportar backup" para salvar um arquivo .json e "Importar backup"
 para restaurar. Desinstalar o app apaga todos os dados, então exporte antes.
+
+## Autoria
+
+Criado por **Gabriel Mattos**, com a ajuda do **Claude** (Anthropic).
+Fotos dos exercícios: [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (domínio público).

@@ -277,7 +277,15 @@ export default function SettingsPage() {
       <SectionTitle>Recursos</SectionTitle>
       <Row icon={<HelpIcon />} label="Rever tutorial" onClick={openTutorial} />
 
-      <p className="mt-8 text-center text-sm text-slate-500">FitFlow · funciona 100% offline</p>
+<SectionTitle>Sobre</SectionTitle>
+<div className="rounded-2xl border border-[#2b3672] p-4 text-center text-sm text-slate-400">
+  <p className="text-base font-bold text-slate-200">FitFlow</p>
+  <p className="mt-1">Criado por Gabriel Mattos</p>
+  <p>com a ajuda do Claude (Anthropic)</p>
+  <p className="mt-2 text-xs text-slate-500">Fotos dos exercícios: free-exercise-db (domínio público)</p>
+</div>
+
+<p className="mt-8 text-center text-sm text-slate-500">FitFlow · funciona 100% offline</p>
     </div>
   )
 }
