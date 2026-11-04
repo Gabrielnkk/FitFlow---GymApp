@@ -34,7 +34,7 @@ src/
 Requisito: Node.js LTS instalado.
 
 ```powershell
-cd C:\Users\gabri\Documents\Projetos\fitflow
+cd C:\Users\user\Documents\Projetos\fitflow
 npm install
 npm run dev
 ```
