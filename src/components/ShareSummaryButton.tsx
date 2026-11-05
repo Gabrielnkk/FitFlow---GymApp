@@ -1,8 +1,17 @@
-import { useState } from 'react'
+// made by: Gabriel Mattos
+import { useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import type { Session } from '../types'
+import Modal from './Modal'
+import { isIos } from '../utils/platform'
+
+// TEMPORÁRIO: marca no console cada caminho que o botão toma (para testar no Safari Web Inspector).
+// Quando terminar de testar, pode apagar a função e as linhas "log(...)".
+function log(...args: unknown[]): void {
+  console.log('[FitFlow compartilhar]', ...args)
+}
 
 const W = 1080
 const H = 1350
@@ -139,53 +148,171 @@ function drawSummary(session: Session): HTMLCanvasElement {
   return canvas
 }
 
+// Transforma o desenho (canvas) em arquivo PNG
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob devolveu vazio'))), 'image/png')
+  })
+}
+
+// Só usado no APK: o plugin de arquivos do Capacitor pede o conteúdo em base64
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+    reader.onerror = () => reject(reader.error ?? new Error('Falha ao ler a imagem'))
+    reader.readAsDataURL(file)
+  })
+}
+
+interface Prepared {
+  key: string // de qual sessão (e de qual tentativa) é esta imagem
+  file: File
+  url: string // endereço temporário da imagem, usado só para mostrar na tela
+}
+
 export default function ShareSummaryButton({ session }: { session: Session }) {
+  const [attempt, setAttempt] = useState(0)
+  const key = `${session.id}:${attempt}`
+  const [stored, setStored] = useState<Prepared | null>(null)
+  const [failedKey, setFailedKey] = useState('')
+  // só vale a imagem que é desta sessão e desta tentativa
+  const prepared = stored?.key === key ? stored : null
+  const failed = failedKey === key
   const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState(false)
   const [message, setMessage] = useState('')
 
-  async function share() {
-    setBusy(true)
-    setMessage('')
-    try {
-      // garante que a fonte do app já carregou antes de desenhar
-      await document.fonts?.load("800 40px 'Plus Jakarta Sans Variable'")
-      const canvas = drawSummary(session)
-      const dataUrl = canvas.toDataURL('image/png')
-      const base64 = dataUrl.split(',')[1]
-      const fileName = `fitflow-${new Date(session.startedAt).toISOString().slice(0, 10)}.png`
+  // A imagem é gerada assim que a tela abre. O iOS só deixa abrir a janela de compartilhar
+  // logo depois de um toque seu; se o app desenhasse a imagem só no toque, ele podia recusar.
+  useEffect(() => {
+    let cancelled = false
+    let url = ''
+    void (async () => {
+      try {
+        // garante que a fonte do app já carregou antes de desenhar
+        await document.fonts?.load("800 40px 'Plus Jakarta Sans Variable'")
+        const blob = await canvasToBlob(drawSummary(session))
+        if (cancelled) return
+        const day = new Date(session.startedAt).toISOString().slice(0, 10)
+        const file = new File([blob], `treino-${day}.png`, { type: 'image/png' })
+        url = URL.createObjectURL(blob)
+        log('imagem pronta', file.name, `${Math.round(blob.size / 1024)} KB`)
+        setStored({ key, file, url })
+      } catch (err) {
+        log('erro ao gerar a imagem', err)
+        if (!cancelled) setFailedKey(key)
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+    // a imagem só muda se for outra sessão (ou se você tocar para tentar de novo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
 
-      if (Capacitor.isNativePlatform()) {
+  async function share() {
+    if (busy) return
+    if (!prepared) {
+      if (failed) setAttempt((a) => a + 1) // tenta gerar de novo
+      return
+    }
+    setMessage('')
+    const { file } = prepared
+    const text = `Treino do dia ${new Date(session.startedAt).toLocaleDateString('pt-BR')}: ${session.name}`
+
+    // 1) APK Android (Capacitor): janela de compartilhar do próprio Android
+    if (Capacitor.isNativePlatform()) {
+      setBusy(true)
+      try {
+        log('caminho: APK (Capacitor)')
         const saved = await Filesystem.writeFile({
-          path: fileName,
-          data: base64,
+          path: file.name,
+          data: await fileToBase64(file),
           directory: Directory.Cache,
         })
-        await Share.share({ title: 'Meu treino no FitFlow', files: [saved.uri] })
-      } else {
-        // no navegador: baixa a imagem
-        const a = document.createElement('a')
-        a.href = dataUrl
-        a.download = fileName
-        a.click()
-        setMessage('Imagem baixada.')
+        await Share.share({ title: 'Meu treino', text, files: [saved.uri] })
+      } catch (err) {
+        if (!(err instanceof Error && /cancel/i.test(err.message))) {
+          log('erro no APK', err)
+          setMessage('Não foi possível compartilhar. Tente novamente.')
+        }
+      } finally {
+        setBusy(false)
       }
-    } catch {
-      setMessage('Não consegui compartilhar agora. Tente de novo.')
-    } finally {
-      setBusy(false)
+      return
     }
+
+    // 2) Navegador / PWA do iPhone: janela nativa de compartilhar com a imagem.
+    // Importante: não pode haver nenhum "await" antes do navigator.share (o iOS exige o toque recente).
+    if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
+      setBusy(true)
+      try {
+        log('caminho: Web Share API (janela nativa)')
+        await navigator.share({ files: [file], title: 'Meu treino', text })
+        log('compartilhado com sucesso')
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          log('você fechou a janela de compartilhar (ignorado)')
+        } else {
+          log('erro no navigator.share', err)
+          setMessage('Não foi possível compartilhar. Tente novamente.')
+        }
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+
+    // 3) Sem suporte (ex.: computador): mostra a imagem na tela, sem fingir que baixou nada
+    log('caminho: sem Web Share com arquivo, mostrando a imagem na tela')
+    setPreview(true)
   }
+
+  const label = busy
+    ? 'Compartilhando...'
+    : !prepared && !failed
+      ? 'Gerando imagem...'
+      : failed
+        ? 'Tentar de novo'
+        : '📤 Compartilhar treino'
 
   return (
     <div className="mb-4">
       <button
-        onClick={share}
-        disabled={busy}
+        onClick={() => void share()}
+        disabled={busy || (!prepared && !failed)}
         className="w-full rounded-xl bg-emerald-500 py-3 text-base font-bold text-white disabled:opacity-60"
       >
-        {busy ? 'Gerando imagem...' : '📤 Compartilhar resumo'}
+        {label}
       </button>
+      {failed && !message && (
+        <p className="mt-2 text-center text-sm text-slate-300">Não foi possível gerar a imagem.</p>
+      )}
       {message && <p className="mt-2 text-center text-sm text-slate-300">{message}</p>}
+
+      {preview && prepared && (
+        <Modal title="Resumo do treino" onClose={() => setPreview(false)}>
+          <img src={prepared.url} alt="Resumo do treino" className="mx-auto mb-3 w-full rounded-xl" />
+          {isIos() ? (
+            <p className="text-center text-sm text-slate-300">Toque e segure na imagem para salvar em Fotos.</p>
+          ) : (
+            <>
+              <p className="mb-3 text-center text-sm text-slate-300">
+                Este navegador não abre a janela de compartilhar. Baixe a imagem abaixo.
+              </p>
+              <a
+                href={prepared.url}
+                download={prepared.file.name}
+                className="block rounded-xl bg-slate-700 py-3 text-center text-base font-bold text-white"
+              >
+                Baixar imagem
+              </a>
+            </>
+          )}
+        </Modal>
+      )}
     </div>
   )
 }

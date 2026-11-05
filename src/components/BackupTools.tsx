@@ -1,7 +1,8 @@
+// made by: Gabriel Mattos
 import { useState } from 'react'
 import { bodyCsv, sessionsCsv } from '../utils/csv'
 import { daysSince, lastBackupAt } from '../utils/backupReminder'
-import { saveTextFile } from '../utils/files'
+import { useSaveFile } from '../hooks/useSaveFile'
 
 function stamp(): string {
   const d = new Date()
@@ -12,12 +13,15 @@ function stamp(): string {
 export default function BackupTools() {
   const [msg, setMsg] = useState('')
   const last = lastBackupAt()
+  const { save, dialog } = useSaveFile(() => setMsg('Arquivo salvo.'))
 
   async function run(kind: 'treinos' | 'corpo') {
     try {
       const text = kind === 'treinos' ? await sessionsCsv() : await bodyCsv()
-      const ok = await saveTextFile(`fitflow-${kind}-${stamp()}.csv`, text)
-      setMsg(ok ? 'Arquivo gerado.' : 'Exportação cancelada.')
+      const result = await save(`fitflow-${kind}-${stamp()}.csv`, text)
+      if (result === 'saved') setMsg('Arquivo salvo.')
+      else if (result === 'cancelled') setMsg('Exportação cancelada.')
+      else setMsg('Arquivo pronto. Toque em "Salvar arquivo" para escolher onde guardar.')
     } catch {
       setMsg('Não consegui gerar o arquivo.')
     }
@@ -40,6 +44,7 @@ export default function BackupTools() {
         </button>
       </div>
       {msg && <p className="mt-2 text-sm text-slate-300">{msg}</p>}
+      {dialog}
     </section>
   )
 }

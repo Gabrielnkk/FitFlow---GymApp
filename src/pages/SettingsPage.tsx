@@ -1,10 +1,11 @@
+// made by: Gabriel Mattos
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { db } from '../db/database'
 import { buildBackup, parseBackup, restoreBackup } from '../db/backup'
-import { saveTextFile } from '../utils/files'
+import { useSaveFile } from '../hooks/useSaveFile'
 import AssistantSettings from '../components/AssistantSettings'
 import ProgressionSettings from '../components/ProgressionSettings'
 import RestAlertSettings from '../components/RestAlertSettings'
@@ -95,6 +96,9 @@ function BackupScreen() {
   const fileInput = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const { save, dialog } = useSaveFile(() =>
+    setMessage({ type: 'ok', text: 'Backup salvo com sucesso.' }),
+  )
 
   const counts = useLiveQuery(async () => ({
     exercises: await db.exercises.count(),
@@ -108,11 +112,13 @@ function BackupScreen() {
     try {
             const backup = await buildBackup()
       const extras = await buildExtras()
-      const done = await saveTextFile(
+      const result = await save(
         `fitflow-backup-${todayStamp()}.json`,
         JSON.stringify(Object.assign({}, backup, { extras }), null, 2),
       )
-      if (done) setMessage({ type: 'ok', text: 'Backup gerado com sucesso.' })
+      if (result === 'saved') setMessage({ type: 'ok', text: 'Backup salvo com sucesso.' })
+      else if (result === 'pending')
+        setMessage({ type: 'ok', text: 'Backup pronto. Toque em "Salvar arquivo" para escolher onde guardar.' })
     } catch (err) {
       setMessage({
         type: 'error',
@@ -223,6 +229,8 @@ function BackupScreen() {
           </p>
         )}
       </section>
+
+      {dialog}
     </>
   )
 }
