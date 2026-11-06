@@ -1,10 +1,13 @@
+// made by: Gabriel Mattos
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/database'
-import { MUSCLE_GROUPS, type Exercise, type MuscleGroup } from '../types'
+import { MUSCLE_GROUPS, type Exercise } from '../types'
 import { newId } from '../utils/id'
 import Modal from '../components/Modal'
 import ExerciseForm, { type ExerciseData } from '../components/ExerciseForm'
+import ExerciseFilters from '../components/ExerciseFilters'
+import { filterExercises, type GroupFilter } from '../utils/filterExercises'
 import ExerciseHowTo from '../components/ExerciseHowTo'
 import { DumbbellIcon } from '../components/Icons'
 import { ChevronIcon } from '../components/SettingsIcons'
@@ -20,13 +23,10 @@ function SectionTitle({ children }: { children: string }) {
 export default function ExercisesPage() {
   const exercises = useLiveQuery(() => db.exercises.toArray())
   const [search, setSearch] = useState('')
-  const [group, setGroup] = useState<MuscleGroup | 'Todos'>('Todos')
+  const [group, setGroup] = useState<GroupFilter>('Todos')
   const [editing, setEditing] = useState<Exercise | 'new' | null>(null)
 
-  const filtered = (exercises ?? [])
-    .filter((e) => group === 'Todos' || e.muscleGroup === group)
-    .filter((e) => e.name.toLowerCase().includes(search.trim().toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  const filtered = filterExercises(exercises ?? [], search, group)
 
   // Agrupa por músculo, na ordem da lista de grupos
   const sections = MUSCLE_GROUPS.map((g) => ({
@@ -55,42 +55,7 @@ export default function ExercisesPage() {
     <div className="p-4">
       <h1 className="mb-4 text-3xl font-bold text-emerald-400">Exercícios</h1>
 
-      <div className="relative mb-3">
-        <svg
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
-        <input
-          className="w-full rounded-xl bg-slate-800 py-3 pl-11 pr-4 text-base text-slate-50 outline-none placeholder:text-slate-500"
-          placeholder="Buscar exercício"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {(['Todos', ...MUSCLE_GROUPS] as const).map((g) => (
-          <button
-            key={g}
-            onClick={() => setGroup(g)}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${
-              group === g ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-300'
-            }`}
-          >
-            {g}
-          </button>
-        ))}
-      </div>
+      <ExerciseFilters search={search} onSearch={setSearch} group={group} onGroup={setGroup} />
 
       {exercises && filtered.length === 0 && (
         <p className="py-8 text-center text-slate-400">Nenhum exercício encontrado.</p>

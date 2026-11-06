@@ -1,3 +1,4 @@
+// made by: Gabriel Mattos
 import { useEffect, useState } from 'react'
 
 // Aparece só uma vez por abertura do app (não volta ao navegar entre telas)
@@ -11,9 +12,13 @@ export default function Splash() {
 
   useEffect(() => {
     if (alreadyShown) return
-    alreadyShown = true
     const t1 = window.setTimeout(() => setPhase('fade'), SHOW_MS)
-    const t2 = window.setTimeout(() => setPhase('gone'), SHOW_MS + FADE_MS)
+    const t2 = window.setTimeout(() => {
+      // só marca "já mostrei" quando termina: o StrictMode do React (npm run dev) roda este efeito
+      // duas vezes, e marcar no começo fazia o splash ficar travado na tela
+      alreadyShown = true
+      setPhase('gone')
+    }, SHOW_MS + FADE_MS)
     return () => {
       window.clearTimeout(t1)
       window.clearTimeout(t2)
