@@ -1,3 +1,4 @@
+// made by: Gabriel Mattos
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
@@ -13,6 +14,7 @@ import { db } from '../db/database'
 import { buildPoints, buildRecords, buildSummaries } from '../db/progress'
 import { formatDate, formatKg } from '../utils/format'
 import { buildBaselines } from '../utils/rpe'
+import { paddedDomain } from '../utils/chartDomain'
 import ProgressTabs from '../components/ProgressTabs'
 import { ChevronIcon } from '../components/SettingsIcons'
 
@@ -135,7 +137,13 @@ export default function ProgressPage() {
             <LineChart data={points} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
               <CartesianGrid stroke="#36344f" strokeDasharray="3 3" />
               <XAxis dataKey="label" stroke="#918fa9" fontSize={12} />
-              <YAxis stroke="#918fa9" fontSize={12} />
+              <YAxis
+                stroke="#918fa9"
+                fontSize={12}
+                domain={(range) =>
+                  paddedDomain(metric === 'maxWeight' ? 'kg' : 'relative', range)
+                }
+              />
               <Tooltip
                 contentStyle={{
                   background: '#181629',

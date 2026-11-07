@@ -1,3 +1,4 @@
+// made by: Gabriel Mattos
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -42,18 +43,32 @@ export default function WorkoutEditorPage() {
   const exerciseById = new Map<string, Exercise>((exercises ?? []).map((e) => [e.id, e]))
 
   function addExercise(e: Exercise) {
-    setItems((prev) => [
-      ...prev,
-      {
-        exerciseId: e.id,
-        sets: 3,
-        targetReps: 10,
-        restSeconds: 60,
-        targetSeconds: e.mode === 'time' ? (e.muscleGroup === 'Cardio' ? 600 : 30) : undefined,
-      },
-    ])
+    setItems((prev) =>
+      // o mesmo exercício não entra duas vezes no mesmo treino
+      prev.some((it) => it.exerciseId === e.id)
+        ? prev
+        : [
+            ...prev,
+            {
+              exerciseId: e.id,
+              sets: 3,
+              targetReps: 10,
+              restSeconds: 60,
+              targetSeconds: e.mode === 'time' ? (e.muscleGroup === 'Cardio' ? 600 : 30) : undefined,
+            },
+          ],
+    )
     setPicking(false)
   }
+
+  // Chave estável de cada linha (em vez da posição): a lista não se confunde ao reordenar.
+  // Treinos antigos que já têm exercício repetido ganham "#2", "#3"... e um selo de aviso.
+  const seen = new Map<string, number>()
+  const rowInfo = items.map((it) => {
+    const n = seen.get(it.exerciseId) ?? 0
+    seen.set(it.exerciseId, n + 1)
+    return { key: `${it.exerciseId}#${n}`, repeated: n > 0 || items.filter((x) => x.exerciseId === it.exerciseId).length > 1 }
+  })
 
   function updateItem(index: number, patch: Partial<WorkoutExercise>) {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)))
@@ -129,13 +144,18 @@ export default function WorkoutEditorPage() {
         {items.map((it, index) => {
           const ex = exerciseById.get(it.exerciseId)
           return (
-            <li key={index} className="rounded-xl bg-slate-800 p-4">
+            <li key={rowInfo[index].key} className="rounded-xl bg-slate-800 p-4">
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div>
                   <div className="text-lg font-semibold">
                     {ex ? ex.name : '(exercício removido)'}
                   </div>
                   {ex && <div className="text-sm text-slate-400">{ex.muscleGroup}</div>}
+                  {rowInfo[index].repeated && (
+                    <div className="mt-1 text-xs font-semibold text-amber-300">
+                      ⚠ Repetido neste treino. Remova um deles se foi sem querer.
+                    </div>
+                  )}
                   {ex && (
                     <div className="mt-1">
                       <ExerciseHowTo name={ex.name} />
@@ -241,7 +261,13 @@ export default function WorkoutEditorPage() {
         Salvar treino
       </button>
 
-      {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(false)} />}
+      {picking && (
+        <ExercisePicker
+          onPick={addExercise}
+          onClose={() => setPicking(false)}
+          disabledIds={items.map((it) => it.exerciseId)}
+        />
+      )}
     </div>
   )
 }

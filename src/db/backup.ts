@@ -1,3 +1,4 @@
+// made by: Gabriel Mattos
 import { db } from './database'
 import type { BackupFile } from '../types'
 
@@ -50,7 +51,60 @@ export function parseBackup(text: string): BackupFile {
   if (b.bodyEntries !== undefined && !isListWithIds(b.bodyEntries)) {
     throw new Error('Os registros de peso e medidas do backup estão corrompidos.')
   }
+  const problem = findContentProblem(b as BackupFile)
+  if (problem) throw new Error(`O backup está corrompido: ${problem}. Nada foi alterado.`)
   return b as BackupFile
+}
+
+type Obj = Record<string, unknown>
+
+function isObj(v: unknown): v is Obj {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+// Se o campo existe, precisa ser um número de verdade (nem texto, nem NaN)
+function badNumber(o: Obj, key: string): boolean {
+  return o[key] !== undefined && !(typeof o[key] === 'number' && Number.isFinite(o[key]))
+}
+
+/** Olha dentro de cada item do backup. Devolve o primeiro problema encontrado (ou null se está tudo certo). */
+function findContentProblem(b: BackupFile): string | null {
+  for (const e of b.exercises as unknown as Obj[]) {
+    if (typeof e.name !== 'string' || e.name.trim() === '') return 'há um exercício sem nome'
+    if (typeof e.muscleGroup !== 'string') return `o exercício "${e.name}" não tem grupo muscular`
+  }
+  for (const w of b.workouts as unknown as Obj[]) {
+    if (typeof w.name !== 'string') return 'há um treino sem nome'
+    if (!Array.isArray(w.items)) return `o treino "${w.name}" não tem lista de exercícios`
+    for (const it of w.items) {
+      if (!isObj(it) || typeof it.exerciseId !== 'string') {
+        return `o treino "${w.name}" tem um exercício inválido`
+      }
+      if (['sets', 'targetReps', 'restSeconds'].some((k) => badNumber(it, k))) {
+        return `o treino "${w.name}" tem números inválidos`
+      }
+    }
+  }
+  for (const s of b.sessions as unknown as Obj[]) {
+    if (typeof s.startedAt !== 'number' || !Number.isFinite(s.startedAt)) {
+      return 'há uma sessão do histórico sem data'
+    }
+    if (!Array.isArray(s.exercises)) return 'há uma sessão do histórico sem exercícios'
+    for (const ex of s.exercises) {
+      if (!isObj(ex) || typeof ex.exerciseId !== 'string' || !Array.isArray(ex.sets)) {
+        return 'há um exercício inválido dentro do histórico'
+      }
+      for (const st of ex.sets) {
+        if (!isObj(st) || badNumber(st, 'weight') || badNumber(st, 'reps')) {
+          return 'há uma série com números inválidos no histórico'
+        }
+      }
+    }
+  }
+  for (const e of (b.bodyEntries ?? []) as unknown as Obj[]) {
+    if (typeof e.date !== 'number' || !Number.isFinite(e.date)) return 'há um registro de peso sem data'
+  }
+  return null
 }
 
 export interface RestoreResult {

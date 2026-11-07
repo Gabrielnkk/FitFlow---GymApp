@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
+// made by: Gabriel Mattos
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
@@ -13,6 +14,7 @@ import PrCelebration from '../components/PrCelebration'
 import { buildRecords, checkPr } from '../utils/records'
 import type { PrInfo } from '../utils/records'
 import { useNow } from '../hooks/useNow'
+import { isIos } from '../utils/platform'
 import { alertRestEnd, unlockAudio } from '../utils/feedback'
 import {
   buildBaselines,
@@ -46,6 +48,16 @@ function formatClock(totalSeconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+// "há 1 min 20 s" (usado quando você volta ao app depois do fim do descanso)
+function formatAgo(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return m > 0 ? `${m} min ${s} s` : `${s} s`
+}
+
+// Passou desse tempo sem você voltar ao app: só mostra o aviso na tela, sem apitar de repente
+const LATE_SOUND_LIMIT_MS = 10 * 60 * 1000
+
 function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(total / 3600)
@@ -71,6 +83,9 @@ export default function ActiveSessionPage() {
   const sessionId = session?.id
   const restEndsAt = session?.restEndsAt ?? null
   const remaining = restEndsAt ? Math.max(0, Math.ceil((restEndsAt - now) / 1000)) : 0
+  // Descanso que já acabou e continua na tela (você estava fora do app). Menos de 3 s é só o "tic" normal.
+  const overdueSeconds = restEndsAt && now - restEndsAt >= 3000 ? Math.floor((now - restEndsAt) / 1000) : 0
+  const showIosNote = isIos()
 
   // Quando o descanso termina: vibra, apita e limpa o timer
   useEffect(() => {
@@ -78,11 +93,18 @@ export default function ActiveSessionPage() {
     if (now < restEndsAt) return
     if (alertedFor.current === restEndsAt) return
     alertedFor.current = restEndsAt
-    // Se o app ficou fechado durante o descanso, não apita atrasado
-    if (now - restEndsAt < 3000) alertRestEnd()
-    mutateSession(sessionId, (s) => {
-      s.restEndsAt = null
-    })
+    const late = now - restEndsAt
+    if (late < 3000) {
+      // chegou na hora: vibra, apita e limpa o timer
+      alertRestEnd()
+      mutateSession(sessionId, (s) => {
+        s.restEndsAt = null
+      })
+      return
+    }
+    // Você voltou ao app depois do fim (o iPhone pausa o app em segundo plano):
+    // apita (se não faz muito tempo) e deixa o aviso "Descanso terminou há ..." na tela até você tocar em Ok.
+    if (late < LATE_SOUND_LIMIT_MS) alertRestEnd()
   }, [now, restEndsAt, sessionId])
 
   // Mantém a tela ligada durante o treino e prepara as notificações (se já permitidas)
@@ -248,6 +270,8 @@ export default function ActiveSessionPage() {
       set.done = !set.done
       if (set.done && ex.restSeconds > 0 && !ex.superset) {
         s.restEndsAt = Date.now() + ex.restSeconds * 1000
+      } else if (s.restEndsAt && s.restEndsAt <= Date.now()) {
+        s.restEndsAt = null // some o aviso "descanso terminou" antigo
       }
     })
   }
@@ -260,6 +284,7 @@ export default function ActiveSessionPage() {
       set.timerEndsAt = undefined
       set.done = true
       if (ex.restSeconds > 0 && !ex.superset) s.restEndsAt = Date.now() + ex.restSeconds * 1000
+      else if (s.restEndsAt && s.restEndsAt <= Date.now()) s.restEndsAt = null
     })
   }
 
@@ -300,8 +325,11 @@ export default function ActiveSessionPage() {
 
   async function addExercise(e: Exercise) {
     setPicking(false)
+    // o mesmo exercício não entra duas vezes no mesmo treino
+    if (session?.exercises.some((x) => x.exerciseId === e.id)) return
     const item = await buildSessionExercise(e, 3, 10, 60)
     await mutateSession(id, (s) => {
+      if (s.exercises.some((x) => x.exerciseId === e.id)) return
       s.exercises.push(item)
     })
   }
@@ -530,43 +558,70 @@ export default function ActiveSessionPage() {
         Descartar treino
       </button>
 
-      {restEndsAt && <div className="h-24" />}
+      {restEndsAt && <div className={showIosNote ? 'h-40' : 'h-24'} />}
 
       {restEndsAt && (
         <div
           className="fixed inset-x-0 bottom-20 z-40 px-4"
           style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
         >
-          <div className="mx-auto flex max-w-md items-center justify-between gap-2 rounded-2xl bg-emerald-500 p-3 text-white shadow-lg">
-            <div>
-              <div className="text-xs font-bold">DESCANSO</div>
-              <div className="text-3xl font-bold tabular-nums">{formatClock(remaining)}</div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => adjustRest(-15)}
-                className="rounded-lg bg-white/20 px-3 py-3 text-sm font-bold"
-              >
-                −15s
-              </button>
-              <button
-                onClick={() => adjustRest(15)}
-                className="rounded-lg bg-white/20 px-3 py-3 text-sm font-bold"
-              >
-                +15s
-              </button>
+          {showIosNote && (
+            <p className="mx-auto mb-2 max-w-md rounded-xl bg-slate-900 p-2 text-xs text-amber-300 shadow-lg">
+              ⚠️ No iPhone o app pausa em segundo plano e não consegue avisar. Se você sair do app, o
+              aviso aparece assim que voltar.
+            </p>
+          )}
+          {overdueSeconds > 0 ? (
+            <div className="mx-auto flex max-w-md items-center justify-between gap-2 rounded-2xl bg-amber-400 p-3 text-slate-900 shadow-lg">
+              <div>
+                <div className="text-xs font-bold">DESCANSO TERMINOU</div>
+                <div className="text-xl font-bold">há {formatAgo(overdueSeconds)}</div>
+              </div>
               <button
                 onClick={skipRest}
-                className="rounded-lg bg-white px-3 py-3 text-sm font-bold text-blue-600"
+                className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-bold text-white"
               >
-                Pular
+                Ok
               </button>
             </div>
-          </div>
+          ) : (
+            <div className="mx-auto flex max-w-md items-center justify-between gap-2 rounded-2xl bg-emerald-500 p-3 text-white shadow-lg">
+              <div>
+                <div className="text-xs font-bold">DESCANSO</div>
+                <div className="text-3xl font-bold tabular-nums">{formatClock(remaining)}</div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => adjustRest(-15)}
+                  className="rounded-lg bg-white/20 px-3 py-3 text-sm font-bold"
+                >
+                  −15s
+                </button>
+                <button
+                  onClick={() => adjustRest(15)}
+                  className="rounded-lg bg-white/20 px-3 py-3 text-sm font-bold"
+                >
+                  +15s
+                </button>
+                <button
+                  onClick={skipRest}
+                  className="rounded-lg bg-white px-3 py-3 text-sm font-bold text-blue-600"
+                >
+                  Pular
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(false)} />}
+      {picking && (
+        <ExercisePicker
+          onPick={addExercise}
+          onClose={() => setPicking(false)}
+          disabledIds={session.exercises.map((x) => x.exerciseId)}
+        />
+      )}
     </div>
   )
 }

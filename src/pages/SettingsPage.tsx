@@ -4,7 +4,8 @@ import type { ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { db } from '../db/database'
-import { buildBackup, parseBackup, restoreBackup } from '../db/backup'
+import { buildBackup, parseBackup } from '../db/backup'
+import { safeRestore } from '../db/safeRestore'
 import { useSaveFile } from '../hooks/useSaveFile'
 import AssistantSettings from '../components/AssistantSettings'
 import ProgressionSettings from '../components/ProgressionSettings'
@@ -27,7 +28,7 @@ import {
   ThemeIcon,
   TimerIcon,
 } from '../components/SettingsIcons'
-import { buildExtras, readExtras, restoreExtras } from '../db/extras'
+import { buildExtras, readExtras } from '../db/extras'
 function todayStamp(): string {
   const d = new Date()
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -144,11 +145,23 @@ function BackupScreen() {
         `Importar este backup?\n\n` +
           `${backup.exercises.length} exercícios, ${backup.workouts.length} treinos e ` +
           `${backup.sessions.length} sessões.\n\n` +
-          `ATENÇÃO: os dados atuais (exercícios, treinos e histórico) serão SUBSTITUÍDOS.`,
+          `ATENÇÃO: os dados atuais (exercícios, treinos e histórico) serão SUBSTITUÍDOS.\n` +
+          `Uma cópia temporária é feita antes; se algo falhar, seus dados voltam como estavam.`,
       )
       if (!ok) return
-      const result = await restoreBackup(backup)
-           const foodCount = extras ? await restoreExtras(extras) : null
+      const outcome = await safeRestore(backup, extras)
+      if (!outcome.ok) {
+        // nem a devolução funcionou: oferece a cópia de segurança como arquivo
+        let extra = ''
+        if (outcome.safetyCopy) {
+          const r = await save(`fitflow-copia-seguranca-${todayStamp()}.json`, outcome.safetyCopy)
+          if (r === 'pending') extra = ' Toque em "Salvar arquivo" para guardar a cópia de segurança.'
+          else if (r === 'saved') extra = ' A cópia de segurança foi salva em arquivo.'
+        }
+        setMessage({ type: 'error', text: outcome.error + extra })
+        return
+      }
+      const { result, foodCount } = outcome
       setMessage({
         type: 'ok',
         text:

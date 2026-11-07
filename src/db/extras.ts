@@ -1,3 +1,4 @@
+// made by: Gabriel Mattos
 import { getGoal, nutritionDb, saveGoal, type FoodEntry, type Macros } from './nutrition'
 import { getAllDays, type DaysMap } from '../utils/schedule'
 import { getGame, sanitizeGame, saveGame, type GameState } from '../utils/gameState'
@@ -13,10 +14,17 @@ export interface Extras {
   game: GameState | null
 }
 
+// Copia o alimento sem o "id" (o banco cria um novo ao restaurar)
+function withoutId(entry: FoodEntry): Omit<FoodEntry, 'id'> {
+  const copy = { ...entry }
+  delete copy.id
+  return copy
+}
+
 export async function buildExtras(): Promise<Extras> {
   const entries = await nutritionDb.entries.toArray()
   return {
-    nutrition: entries.map(({ id: _id, ...rest }) => rest),
+    nutrition: entries.map(withoutId),
     days: getAllDays(),
     goal: getGoal(),
     rpg: { name: getName(), claimed: getClaimed(), look: getLook() },
@@ -30,7 +38,19 @@ export function readExtras(text: string): Extras | null {
     const raw = (JSON.parse(text) as { extras?: Partial<Extras> }).extras
     if (!raw || typeof raw !== 'object') return null
     return {
-      nutrition: Array.isArray(raw.nutrition) ? raw.nutrition : [],
+      // só entra alimento com cara de alimento; o id é descartado (o banco cria um novo)
+      nutrition: Array.isArray(raw.nutrition)
+        ? raw.nutrition
+            .filter(
+              (e): e is Omit<FoodEntry, 'id'> =>
+                typeof e === 'object' &&
+                e !== null &&
+                typeof (e as FoodEntry).name === 'string' &&
+                typeof (e as FoodEntry).date === 'string' &&
+                Number.isFinite((e as FoodEntry).kcal),
+            )
+            .map((e) => withoutId(e as FoodEntry))
+        : [],
       days: raw.days && typeof raw.days === 'object' ? raw.days : {},
       goal: raw.goal && typeof raw.goal === 'object' ? raw.goal : null,
       rpg: {
@@ -47,8 +67,11 @@ export function readExtras(text: string): Extras | null {
 
 /** Troca os dados atuais pelos do backup. Devolve quantos alimentos foram restaurados. */
 export async function restoreExtras(extras: Extras): Promise<number> {
-  await nutritionDb.entries.clear()
-  if (extras.nutrition.length > 0) await nutritionDb.entries.bulkAdd(extras.nutrition as FoodEntry[])
+  // Tudo ou nada: se der erro no meio, a dieta atual continua como estava
+  await nutritionDb.transaction('rw', nutritionDb.entries, async () => {
+    await nutritionDb.entries.clear()
+    if (extras.nutrition.length > 0) await nutritionDb.entries.bulkAdd(extras.nutrition as FoodEntry[])
+  })
   try {
     localStorage.setItem('fitflow-workout-days', JSON.stringify(extras.days))
   } catch {
