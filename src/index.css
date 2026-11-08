@@ -220,7 +220,7 @@ textarea {
   --color-slate-200: #1e2b5a;
   --color-slate-300: #33437a;
   --color-slate-400: #5a6a9a;
-  --color-slate-500: #7886b3;
+  --color-slate-500: #58668f; /* contraste 5:1 sobre fundo branco (antes 3,6:1) */
   --color-slate-600: #b8c3e6;
   --color-slate-700: #e1e7f9;
   --color-slate-800: #ffffff;
@@ -286,7 +286,7 @@ textarea {
   --color-slate-200: #e6e5f1;
   --color-slate-300: #c3c1d6;
   --color-slate-400: #918fa9;
-  --color-slate-500: #6e6c88;
+  --color-slate-500: #8987a3; /* contraste 5:1 sobre o fundo (antes 3,5:1) */
   --color-slate-600: #36344f;
   --color-slate-700: #25233b;
   --color-slate-800: #181629;

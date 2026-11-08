@@ -63,8 +63,11 @@ export async function estimateFood(
       contents: [{ role: 'user', parts }],
       generationConfig: { maxOutputTokens: 2048, responseMimeType: 'application/json' },
     })
-  } catch {
-    throw new Error('Sem conexão com a internet.')
+  } catch (err) {
+    // postGemini já devolve uma mensagem clara (sem internet, travou, etc.)
+    throw new Error(err instanceof Error && err.message ? err.message : 'Sem conexão com a internet.', {
+      cause: err,
+    })
   }
 
   if (!response.ok) {

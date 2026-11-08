@@ -15,6 +15,7 @@ import { buildRecords, checkPr } from '../utils/records'
 import type { PrInfo } from '../utils/records'
 import { useNow } from '../hooks/useNow'
 import { isIos } from '../utils/platform'
+import { buildLastTime, formatLastTime } from '../utils/lastTime'
 import { alertRestEnd, unlockAudio } from '../utils/feedback'
 import {
   buildBaselines,
@@ -80,6 +81,7 @@ export default function ActiveSessionPage() {
   const alertedFor = useRef<number | null>(null)
   const baselines = useMemo(() => buildBaselines(finished ?? []), [finished])
   const records = useMemo(() => buildRecords(finished ?? []), [finished])
+  const lastTime = useMemo(() => buildLastTime(finished ?? []), [finished])
   const sessionId = session?.id
   const restEndsAt = session?.restEndsAt ?? null
   const remaining = restEndsAt ? Math.max(0, Math.ceil((restEndsAt - now) / 1000)) : 0
@@ -433,6 +435,11 @@ export default function ActiveSessionPage() {
               {ex.progress.action === 'up' ? '▲ ' : ex.progress.action === 'down' ? '▼ ' : '= '}
               {ex.progress.reason}
             </div>
+          )}
+          {lastTime.get(ex.exerciseId) && (
+            <p className="mb-2 text-sm text-slate-400">
+              Última vez: {formatLastTime(lastTime.get(ex.exerciseId)!)}
+            </p>
           )}
           <div className="mb-1 grid grid-cols-[2rem_1fr_1fr_3.5rem] gap-2 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <span>#</span>

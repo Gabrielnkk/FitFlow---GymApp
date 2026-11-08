@@ -167,7 +167,7 @@ function BackupScreen() {
         text:
           `Importado: ${result.exercises} exercícios, ${result.workouts} treinos e ${result.sessions} sessões.` +
           (foodCount !== null
-            ? ` Dieta, dias da semana e personagem também foram restaurados (${foodCount} alimentos).`
+            ? ` Dieta, dias da semana, personagem e ajustes também foram restaurados (${foodCount} alimentos).`
             : ''),
       })
     } catch (err) {
@@ -204,7 +204,7 @@ function BackupScreen() {
       <section className="mb-4 rounded-xl bg-slate-800 p-4">
         <h2 className="mb-1 text-xl font-bold">Backup</h2>
         <p className="mb-4 text-sm text-slate-400">
-          O arquivo de backup guarda exercícios, treinos e histórico.
+          O arquivo de backup guarda exercícios, treinos, histórico, dieta e seus ajustes. A chave do Gemini e o lembrete de treino não entram: depois de importar, coloque a chave e ligue o lembrete de novo.
         </p>
 
         <button

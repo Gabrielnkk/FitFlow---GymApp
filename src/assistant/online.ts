@@ -71,29 +71,93 @@ function forgetModel(): void {
   }
 }
 
-/** Chamada única ao Gemini com reserva: se o modelo guardado deu 404 (aposentado), tenta os outros. */
+// Cada tentativa espera no máximo isto; passou, desiste e tenta o próximo modelo
+export const ATTEMPT_TIMEOUT_MS = 15000
+// Depois disso não começa tentativa nova (evita esperar minutos no total)
+const TOTAL_BUDGET_MS = 20000
+// O "lite" responde mais rápido e é o primeiro; os outros ficam de reserva
+const FAST_MODEL = 'gemini-flash-lite-latest'
+
+function modelOrder(resolved: string): string[] {
+  return [...new Set([FAST_MODEL, resolved, 'gemini-flash-latest'])]
+}
+
+function isTimeout(err: unknown): boolean {
+  return err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')
+}
+
+async function errorDetail(res: Response): Promise<string> {
+  try {
+    const body = (await res.clone().json()) as { error?: { message?: string } }
+    return body.error?.message ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/** Chamada única ao Gemini com reserva: limite de 15 s por tentativa e troca de modelo se um travar ou sumir. */
 export async function postGemini(apiKey: string, body: unknown): Promise<Response> {
   const key = cleanApiKey(apiKey)
-  const models = [...new Set([await resolveModel(key), 'gemini-flash-latest', 'gemini-flash-lite-latest'])]
-  let res!: Response
-  for (const model of models) {
-    res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify(body),
-      },
-    )
-    if (res.ok) {
-      rememberModel(model)
-      return res
+  const resolved = await resolveModel(key)
+  const started = Date.now()
+  let res: Response | null = null
+  let timedOut = false
+
+  for (const model of modelOrder(resolved)) {
+    if (Date.now() - started > TOTAL_BUDGET_MS) break
+    // primeiro sem "pensar" (resposta mais rápida); se o Google recusar esse campo (400), tenta sem ele
+    for (const withThinking of [true, false]) {
+      const payload =
+        withThinking && typeof body === 'object' && body !== null
+          ? {
+              ...(body as Record<string, unknown>),
+              generationConfig: {
+                ...((body as { generationConfig?: object }).generationConfig ?? {}),
+                thinkingConfig: { thinkingBudget: 0 },
+              },
+            }
+          : body
+      try {
+        res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+          },
+        )
+      } catch (err) {
+        if (isTimeout(err)) {
+          timedOut = true
+          res = null
+          break // este modelo travou: vai para o próximo
+        }
+        if (!navigator.onLine) throw new Error('Sem conexão com a internet.', { cause: err })
+        throw new Error(
+          `Não consegui falar com o Gemini (${err instanceof Error ? err.message : 'erro de rede'}). Verifique a internet.`,
+          { cause: err },
+        )
+      }
+      if (res.ok) {
+        if (model !== FAST_MODEL) rememberModel(model)
+        return res
+      }
+      if (res.status === 400 && withThinking && !/api key/i.test(await errorDetail(res))) continue
+      break
     }
-    if (res.status === 404) forgetModel()
-    // só tenta outro modelo se este não existe ou está sobrecarregado
-    if (![404, 429, 503, 500].includes(res.status)) break
+    if (res?.status === 404) forgetModel()
+    // só tenta outro modelo se este não existe, está sobrecarregado ou travou
+    if (res && ![404, 429, 503, 500].includes(res.status)) break
   }
-  return res
+
+  if (res) return res
+  if (timedOut) {
+    throw new Error(
+      `O Gemini não respondeu em ${ATTEMPT_TIMEOUT_MS / 1000} s. Tente de novo em instantes ou confira sua internet.`,
+    )
+  }
+  throw new Error('Sem resposta do Gemini.')
 }
 
 export interface ChatTurn {
@@ -187,7 +251,7 @@ export async function askOnline(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
   const send = (model: string, withThinking: boolean) =>
     fetch(url(model), {
-      signal: AbortSignal.timeout(30000), // não fica "Pensando..." para sempre
+      signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS), // não fica "Pensando..." para sempre
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
@@ -204,7 +268,8 @@ export async function askOnline(
   let lastDetail = ''
   let lastModel = ''
   // tenta o modelo principal e, se ele falhar por motivo do modelo, os reservas
-  const models = [...new Set([await resolveModel(key), 'gemini-flash-latest', 'gemini-flash-lite-latest'])]
+  const models = modelOrder(await resolveModel(key))
+  let timedOut = false
   for (let mi = 0; mi < models.length; mi++) {
     const model = models[mi]
     lastModel = model
@@ -212,16 +277,19 @@ export async function askOnline(
       try {
         response = await send(model, withThinking)
       } catch (err) {
-        if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
-          throw new Error(`O Gemini (${model}) não respondeu em 30 s. Se só acontece neste aparelho, teste o link de diagnóstico do guia.`)
+        if (isTimeout(err)) {
+          timedOut = true
+          response = null
+          break // este modelo travou: tenta o próximo
         }
-        if (!navigator.onLine) throw new Error('Sem conexão com a internet.')
+        if (!navigator.onLine) throw new Error('Sem conexão com a internet.', { cause: err })
         throw new Error(
           `Não consegui falar com o Gemini (${err instanceof Error ? err.message : 'erro de rede'}). Verifique a internet e se a chave tem só letras e números.`,
+          { cause: err },
         )
       }
       if (response.ok) {
-        rememberModel(model)
+        if (model !== FAST_MODEL) rememberModel(model)
         break
       }
       let detail = ''
@@ -245,6 +313,11 @@ export async function askOnline(
     if (response && ![404, 429, 503, 500].includes(response.status)) break
   }
 
+  if (timedOut && !response?.ok) {
+    throw new Error(
+      `O Gemini não respondeu em ${ATTEMPT_TIMEOUT_MS / 1000} s. Tente de novo em instantes ou confira sua internet.`,
+    )
+  }
   if (!response) throw new Error('Sem resposta do Gemini.')
   if (!response.ok) {
     const detail = lastDetail

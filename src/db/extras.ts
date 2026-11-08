@@ -4,14 +4,41 @@ import { getAllDays, type DaysMap } from '../utils/schedule'
 import { getGame, sanitizeGame, saveGame, type GameState } from '../utils/gameState'
 import { getLook, sanitizeLook, saveLook, type Look } from '../utils/look'
 import { getClaimed, getName, resetSeenLevel, saveName, setClaimed } from '../utils/rpg'
+import { applyTheme } from '../utils/theme'
 
-// Dados novos (dieta, dias da semana, personagem) que vão junto no arquivo de backup
+// Ajustes simples que vão no backup. De propósito NÃO entram: a chave do Gemini (segredo),
+// o lembrete de treino (precisaria reagendar o alarme) e avisos do tipo "já vi".
+export const SETTINGS_KEYS = [
+  'fitflow-theme',
+  'fitflow-weekly-goal',
+  'fitflow-plates',
+  'fitflow-profile',
+  'fitflow-auto-progression',
+  'fitflow-rest-sound',
+  'fitflow-keep-awake',
+] as const
+
+function readSettings(): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const key of SETTINGS_KEYS) {
+    try {
+      const value = localStorage.getItem(key)
+      if (value !== null) out[key] = value
+    } catch {
+      // sem armazenamento, sem problema
+    }
+  }
+  return out
+}
+
+// Dados novos (dieta, dias da semana, personagem, ajustes) que vão junto no arquivo de backup
 export interface Extras {
   nutrition: Omit<FoodEntry, 'id'>[]
   days: DaysMap
   goal: Macros | null
   rpg: { name: string; claimed: Record<string, number>; look: Look }
   game: GameState | null
+  settings: Record<string, string> // backups antigos não têm: fica vazio
 }
 
 // Copia o alimento sem o "id" (o banco cria um novo ao restaurar)
@@ -29,6 +56,7 @@ export async function buildExtras(): Promise<Extras> {
     goal: getGoal(),
     rpg: { name: getName(), claimed: getClaimed(), look: getLook() },
     game: getGame(),
+    settings: readSettings(),
   }
 }
 
@@ -59,6 +87,12 @@ export function readExtras(text: string): Extras | null {
         look: sanitizeLook(raw.rpg?.look),
       },
       game: sanitizeGame(raw.game),
+      // só entram as chaves da lista acima, e só texto de tamanho razoável
+      settings: Object.fromEntries(
+        Object.entries(raw.settings && typeof raw.settings === 'object' ? raw.settings : {}).filter(
+          ([k, v]) => (SETTINGS_KEYS as readonly string[]).includes(k) && typeof v === 'string' && v.length <= 5000,
+        ),
+      ) as Record<string, string>,
     }
   } catch {
     return null
@@ -82,6 +116,14 @@ export async function restoreExtras(extras: Extras): Promise<number> {
   setClaimed(extras.rpg.claimed)
   saveLook(extras.rpg.look)
   if (extras.game) saveGame(extras.game)
+  for (const [key, value] of Object.entries(extras.settings)) {
+    try {
+      localStorage.setItem(key, value)
+    } catch {
+      // sem armazenamento, sem problema
+    }
+  }
+  applyTheme() // o tema restaurado vale na hora
   resetSeenLevel() // evita comemorar um nível "novo" só porque o backup foi importado
   return extras.nutrition.length
 }

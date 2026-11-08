@@ -7,14 +7,15 @@ import type { Session } from '../types'
 import Modal from './Modal'
 import { isIos } from '../utils/platform'
 
-// TEMPORÁRIO: marca no console cada caminho que o botão toma (para testar no Safari Web Inspector).
-// Quando terminar de testar, pode apagar a função e as linhas "log(...)".
-function log(...args: unknown[]): void {
-  console.log('[FitFlow compartilhar]', ...args)
-}
-
 const W = 1080
 const H = 1350
+
+// Data no fuso do aparelho (AAAA-MM-DD). toISOString usaria UTC e, depois das 21h no Brasil, trocaria o dia.
+function localDay(ms: number): string {
+  const d = new Date(ms)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
 
 function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ',')
@@ -194,13 +195,11 @@ export default function ShareSummaryButton({ session }: { session: Session }) {
         await document.fonts?.load("800 40px 'Plus Jakarta Sans Variable'")
         const blob = await canvasToBlob(drawSummary(session))
         if (cancelled) return
-        const day = new Date(session.startedAt).toISOString().slice(0, 10)
+        const day = localDay(session.startedAt)
         const file = new File([blob], `treino-${day}.png`, { type: 'image/png' })
         url = URL.createObjectURL(blob)
-        log('imagem pronta', file.name, `${Math.round(blob.size / 1024)} KB`)
         setStored({ key, file, url })
-      } catch (err) {
-        log('erro ao gerar a imagem', err)
+      } catch {
         if (!cancelled) setFailedKey(key)
       }
     })()
@@ -226,7 +225,6 @@ export default function ShareSummaryButton({ session }: { session: Session }) {
     if (Capacitor.isNativePlatform()) {
       setBusy(true)
       try {
-        log('caminho: APK (Capacitor)')
         const saved = await Filesystem.writeFile({
           path: file.name,
           data: await fileToBase64(file),
@@ -235,7 +233,6 @@ export default function ShareSummaryButton({ session }: { session: Session }) {
         await Share.share({ title: 'Meu treino', text, files: [saved.uri] })
       } catch (err) {
         if (!(err instanceof Error && /cancel/i.test(err.message))) {
-          log('erro no APK', err)
           setMessage('Não foi possível compartilhar. Tente novamente.')
         }
       } finally {
@@ -249,14 +246,10 @@ export default function ShareSummaryButton({ session }: { session: Session }) {
     if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
       setBusy(true)
       try {
-        log('caminho: Web Share API (janela nativa)')
         await navigator.share({ files: [file], title: 'Meu treino', text })
-        log('compartilhado com sucesso')
       } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          log('você fechou a janela de compartilhar (ignorado)')
-        } else {
-          log('erro no navigator.share', err)
+        // AbortError = você fechou a janela de compartilhar (não é erro)
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
           setMessage('Não foi possível compartilhar. Tente novamente.')
         }
       } finally {
@@ -266,7 +259,6 @@ export default function ShareSummaryButton({ session }: { session: Session }) {
     }
 
     // 3) Sem suporte (ex.: computador): mostra a imagem na tela, sem fingir que baixou nada
-    log('caminho: sem Web Share com arquivo, mostrando a imagem na tela')
     setPreview(true)
   }
 
