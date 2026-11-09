@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   ChatIcon,
@@ -10,15 +11,16 @@ import {
 import { ForkIcon } from './NutritionIcons'
 import LevelWatcher from './LevelWatcher'
 
+type TabIcon = ComponentType<{ active?: boolean; size?: number }>
 
-const tabs = [
-  { to: '/', label: 'Treinos', icon: <DumbbellIcon />, end: true },
-  { to: '/exercicios', label: 'Exercícios', icon: <ListIcon />, end: false },
-  { to: '/dieta', label: 'Dieta', icon: <ForkIcon />, end: false },
-  { to: '/historico', label: 'Histórico', icon: <ClockIcon />, end: false },
-  { to: '/progresso', label: 'Progresso', icon: <TrendIcon />, end: false },
-  { to: '/assistente', label: 'Assistente', icon: <ChatIcon />, end: false },
-  { to: '/ajustes', label: 'Ajustes', icon: <SlidersIcon />, end: false },
+const tabs: { to: string; label: string; icon: TabIcon; end: boolean }[] = [
+  { to: '/', label: 'Treinos', icon: DumbbellIcon, end: true },
+  { to: '/exercicios', label: 'Exercícios', icon: ListIcon, end: false },
+  { to: '/dieta', label: 'Dieta', icon: ForkIcon, end: false },
+  { to: '/historico', label: 'Histórico', icon: ClockIcon, end: false },
+  { to: '/progresso', label: 'Progresso', icon: TrendIcon, end: false },
+  { to: '/assistente', label: 'Assistente', icon: ChatIcon, end: false },
+  { to: '/ajustes', label: 'Ajustes', icon: SlidersIcon, end: false },
 ]
 
 export default function Layout() {
@@ -43,14 +45,35 @@ export default function Layout() {
               <NavLink
                 to={t.to}
                 end={t.end}
-                className={({ isActive }) =>
-                  `flex flex-col items-center gap-1 py-2.5 text-[9.5px] transition-colors ${
-                    isActive ? 'font-semibold text-slate-50' : 'font-medium text-slate-500'
-                  }`
-                }
+                className="block h-full"
               >
-                {t.icon}
-                <span>{t.label}</span>
+                {({ isActive }) => {
+                  const Icon = t.icon
+                  return (
+                    <span
+                      className={`relative flex h-full w-full flex-col items-center gap-1 py-2 text-[9.5px] transition-colors ${
+                        isActive ? 'font-semibold text-emerald-400' : 'font-medium text-slate-400'
+                      }`}
+                    >
+                      {isActive && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-x-1/3 top-0 h-0.5 rounded-full bg-emerald-400"
+                        />
+                      )}
+                      <span
+                        className={`flex h-9 min-w-12 items-center justify-center rounded-2xl transition-all duration-200 ${
+                          isActive
+                            ? 'bg-emerald-500/15 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.12)]'
+                            : 'scale-95'
+                        }`}
+                      >
+                        <Icon active={isActive} size={24} />
+                      </span>
+                      <span>{t.label}</span>
+                    </span>
+                  )
+                }}
               </NavLink>
             </li>
           ))}

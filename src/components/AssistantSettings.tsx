@@ -32,7 +32,8 @@ export default function AssistantSettings() {
         O assistente offline funciona sem nada disso. Para a IA online, cole a sua chave de API do
         Google Gemini (crie em aistudio.google.com/apikey). Ela fica só neste aparelho e não entra no
         backup. No modo online, um resumo dos seus últimos treinos e a conversa são enviados ao
-        Google.
+        Google. Ao pedir uma recomendação de dieta, a meta, os dados de perfil disponíveis e as
+        preferências informadas também são enviados ao Gemini.
       </p>
 
       {saved ? (

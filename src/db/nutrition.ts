@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import type { DietRecommendation } from '../assistant/diet'
 import type { Sex } from '../utils/profile'
 
 export type Meal = 'cafe' | 'almoco' | 'lanche' | 'jantar'
@@ -25,13 +26,21 @@ export interface FoodEntry extends Macros {
   createdAt: number
 }
 
+export interface SavedDietPlan {
+  id?: number
+  createdAt: number
+  recommendation: DietRecommendation
+}
+
 // Banco separado do resto do app: não mexe nos seus treinos
 class NutritionDB extends Dexie {
   entries!: Table<FoodEntry, number>
+  savedPlans!: Table<SavedDietPlan, number>
 
   constructor() {
     super('fitflow-nutrition')
     this.version(1).stores({ entries: '++id, date' })
+    this.version(2).stores({ entries: '++id, date', savedPlans: '++id, createdAt' })
   }
 }
 

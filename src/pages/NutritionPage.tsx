@@ -25,6 +25,7 @@ import { latestValue } from '../utils/calculators'
 import { getProfile, saveProfile, type Sex } from '../utils/profile'
 import { getApiKey } from '../assistant/config'
 import { estimateFood, imageToBase64, type EstimatedFood } from '../assistant/estimateFood'
+import DietRecommendation from '../components/DietRecommendation'
 
 const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -741,6 +742,8 @@ export default function NutritionPage() {
           </button>
         )}
       </section>
+
+      <DietRecommendation latestWeight={latestWeight} goal={goal} />
 
       <div className="space-y-3">
         {MEALS.map((m) => {

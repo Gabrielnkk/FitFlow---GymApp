@@ -1,19 +1,21 @@
-export function ForkIcon() {
+type IconProps = { active?: boolean; size?: number }
+
+export function ForkIcon({ active = false, size = 22 }: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="22"
-      height="22"
+      width={size}
+      height={size}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={active ? 1.9 : 1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M7 3v7a2 2 0 0 0 2 2v9" />
-      <path d="M5 3v5M9 3v5" />
-      <path d="M17 21V3c-2.5 1.5-3.5 4.5-3.5 8H17" />
+      {active && <path d="M17 3.5a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3z" fill="currentColor" opacity=".16" stroke="none" />}
+      <path d="M6 3.5v5a2.5 2.5 0 0 0 5 0v-5M8.5 3.5v17" />
+      <path d="M17 20.5V3.5a3 3 0 0 0-3 3v3a3 3 0 0 0 3 3" />
     </svg>
   )
 }
